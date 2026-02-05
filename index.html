@@ -1,56 +1,45 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Monte Carlo Growth Simulator</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f9; color: #333; margin: 0; padding: 20px; }
-        .container { max-width: 900px; margin: auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
-        .grid { display: grid; grid-template-columns: 1fr 2fr; gap: 30px; }
-        .controls { background: #f8f9fa; padding: 20px; border-radius: 8px; border: 1px solid #e1e4e8; }
-        .control-group { margin-bottom: 15px; }
-        label { display: block; font-weight: bold; font-size: 0.9rem; margin-bottom: 5px; color: #2c3e50; }
-        input, select { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
-        h2 { margin-top: 0; color: #001935; border-bottom: 2px solid #00cfda; padding-bottom: 10px; }
-        canvas { background: white; border: 1px solid #eee; border-radius: 8px; }
-        @media (max-width: 768px) { .grid { grid-template-columns: 1fr; } }
-    </style>
 </head>
-<body>
+<body style="font-family:sans-serif;">
 
-<div class="container">
-    <h2>Investment Growth Simulator</h2>
-    <div class="grid">
-        <div class="controls">
-            <div class="control-group">
-                <label>Initial Principal ($)</label>
-                <input type="number" id="principal" value="100000">
-            </div>
-            <div class="control-group">
-                <label>Annual Contribution ($)</label>
-                <input type="number" id="contrib" value="10000">
-            </div>
-            <div class="control-group">
-                <label>Years to Project</label>
-                <input type="number" id="years" value="25" max="50">
-            </div>
-            <hr>
-            <div class="control-group">
-                <label>Expected Return (%)</label>
-                <input type="number" id="rate" value="7" step="0.5">
-            </div>
-            <div class="control-group">
-                <label>Risk / Volatility (Std Dev %)</label>
-                <input type="number" id="sd" value="12">
-            </div>
-            <div class="control-group">
-                <label>Inflation (%)</label>
-                <input type="number" id="inflation" value="2.5">
-            </div>
-            <div class="control-group">
-                <label>Contribution Growth (%)</label>
-                <input type="number" id="g" value="2">
-            </div>
-            <button onclick="runSimulation()" style="width:100%; padding:10px; background:#001935; color:white; border:none; border-radius:4px; cursor
+    <h3>Monte Carlo Simulator</h3>
+    
+    <label>Principal: </label><input type="number" id="p" value="100000"><br>
+    <button onclick="simulate()" style="margin-top:10px; padding:10px;">Click to Calculate</button>
+
+    <div style="height:300px; width:100%;">
+        <canvas id="myChart"></canvas>
+    </div>
+
+    <div id="tableOutput" style="margin-top:20px;"></div>
+
+    <script>
+    function simulate() {
+        const principal = document.getElementById('p').value;
+        
+        // This simple line tests if the "Math Engine" is working
+        document.getElementById('tableOutput').innerHTML = "Current Principal: $" + parseInt(principal).toLocaleString();
+
+        const ctx = document.getElementById('myChart').getContext('2d');
+        if(window.chartObj) { window.chartObj.destroy(); }
+        
+        window.chartObj = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: ['Principal'],
+                datasets: [{
+                    label: 'Projected Value',
+                    data: [principal],
+                    backgroundColor: '#001935'
+                }]
+            }
+        });
+    }
+    // Run once on start
+    simulate();
+    </script>
+</body>
+</html>
