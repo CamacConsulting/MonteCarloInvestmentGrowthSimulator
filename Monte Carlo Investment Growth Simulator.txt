@@ -1,0 +1,142 @@
+# =========================================================
+# TITLE: HYBRID MONTE CARLO INVESTMENT CALCULATOR
+# =========================================================
+
+# 0. Load necessary libraries
+library(shiny)
+library(dplyr)
+library(ggplot2)
+library(scales)
+
+# ---------- 1. Core Financial Functions ----------
+
+# Growing Annuity Formula (The "Base Case")
+# This calculates the exact future value if returns were perfectly steady.
+fv_with_growth <- function(p, pmt, r, g, n) {
+  if (abs(r - g) < 1e-8) {
+    fv_annuity <- pmt * (1 + r) * n * (1 + r)^(n - 1)
+  } else {
+    fv_annuity <- pmt * ((1 + r)^n - (1 + g)^n) / (r - g)
+  }
+  (p * (1 + r)^n) + fv_annuity
+}
+
+# Monte Carlo Simulation (The "Scenario Analysis")
+# Vectorized for speed: generates thousands of paths simultaneously.
+mc_simulation <- function(p, pmt, r_mean, r_sd, g, years, n_sims, inflation) {
+  
+  # Generate a matrix of random returns (Year rows x Simulation columns)
+  returns_mat <- matrix(rnorm(years * n_sims, mean = r_mean, sd = r_sd), nrow = years)
+  
+  # Initialize simulation matrix
+  sims <- matrix(NA, nrow = years + 1, ncol = n_sims)
+  sims[1, ] <- p  # Set starting principal for all paths
+  
+  for (t in 1:years) {
+    # Annual contribution grows by rate g
+    current_pmt <- pmt * (1 + g)^(t - 1)
+    # The math: (Previous Balance * Random Return) + Growing Contribution
+    sims[t + 1, ] <- sims[t, ] * (1 + returns_mat[t, ]) + current_pmt
+  }
+  
+  # Extract percentiles and apply inflation adjustment
+  data.frame(
+    year   = 0:years,
+    median = apply(sims, 1, median),
+    p10    = apply(sims, 1, quantile, 0.10),
+    p90    = apply(sims, 1, quantile, 0.90)
+  ) |>
+    mutate(across(c(median, p10, p90), ~ . / (1 + inflation)^year, .names = "{.col}_real"))
+}
+
+# ---------- 2. User Interface (UI) ----------
+
+ui <- fluidPage(
+  theme = bslib::bs_theme(bootswatch = "flatly"), # Modern professional look
+  titlePanel("Monte Carlo Investment Growth Simulator"),
+  
+  sidebarLayout(
+    sidebarPanel(
+      h4("Starting Parameters"),
+      numericInput("principal", "Initial Principal ($):", value = 100000, min = 0),
+      numericInput("contrib", "Initial Annual Contribution ($):", value = 10000, min = 0),
+      numericInput("years", "Years to Project:", value = 25, min = 1, max = 50),
+      
+      hr(),
+      h4("Market & Economy"),
+      sliderInput("rate", "Expected Annual Return (%):", min = 1, max = 15, value = 7, step = 0.5),
+      sliderInput("sd", "Volatility / Risk (Std Dev %):", min = 0, max = 25, value = 12, step = 1),
+      sliderInput("inflation", "Estimated Inflation (%):", min = 0, max = 10, value = 2.5, step = 0.1),
+      sliderInput("g", "Contribution Growth Rate (%):", min = 0, max = 10, value = 2, step = 0.5),
+      
+      hr(),
+      h4("Simulation Settings"),
+      selectInput("n_sims", "Number of Simulated Paths:", 
+                  choices = c(500, 1000, 5000), selected = 1000)
+    ),
+    
+    mainPanel(
+      tabsetPanel(
+        tabPanel("Projection Chart", 
+                 plotOutput("distPlot", height = "500px"),
+                 br(),
+                 helpText("The median line represents the 50th percentile. The shaded area represents the 
+                          80% confidence interval (10th to 90th percentile).")
+        ),
+        tabPanel("Detailed Yearly Data", tableOutput("summaryTable"))
+      )
+    )
+  )
+)
+
+# ---------- 3. Server Logic ----------
+
+server <- function(input, output) {
+  
+  # Reactive block handles all calculations when inputs change
+  results <- reactive({
+    # We perform the decimal division here to avoid UI errors
+    mc_simulation(
+      p         = input$principal, 
+      pmt       = input$contrib,
+      r_mean    = input$rate / 100, 
+      r_sd      = input$sd / 100, 
+      g         = input$g / 100, 
+      years     = input$years, 
+      n_sims    = as.numeric(input$n_sims), 
+      inflation = input$inflation / 100
+    )
+  })
+  
+  # Generate the visualization
+  output$distPlot <- renderPlot({
+    df <- results()
+    
+    ggplot(df, aes(x = year)) +
+      # The 'Fan' showing uncertainty
+      geom_ribbon(aes(ymin = p10_real, ymax = p90_real), fill = "#3498db", alpha = 0.2) +
+      # The 'Median' path
+      geom_line(aes(y = median_real), color = "#2c3e50", size = 1.2) +
+      scale_y_continuous(labels = label_dollar()) +
+      labs(
+        title = "Real Wealth Projection (Inflation Adjusted)",
+        subtitle = "Based on stochastic returns and constant contribution growth",
+        x = "Years from Now",
+        y = "Purchasing Power (Today's Dollars)"
+      ) +
+      theme_minimal(base_size = 14)
+  })
+  
+  # Generate the data table
+  output$summaryTable <- renderTable({
+    results() |>
+      filter(year %in% seq(0, input$years, by = 5) | year == input$years) |>
+      select(Year = year, 
+             `Conservative (P10)` = p10_real, 
+             `Likely (Median)` = median_real, 
+             `Aggressive (P90)` = p90_real)
+  }, digits = 0, spacing = "m", align = "c")
+}
+
+# ---------- 4. Run the Application ----------
+shinyApp(ui = ui, server = server)
