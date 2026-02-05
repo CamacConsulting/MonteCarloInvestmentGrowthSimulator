@@ -6,37 +6,33 @@
     <title>Monte Carlo Growth Simulator</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        body { font-family: -apple-system, sans-serif; background: #ffffff; padding: 15px; color: #333; margin-bottom: 50px; }
-        .container { max-width: 800px; margin: auto; }
-        .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; background: #f4f7f9; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
-        label { display: block; font-weight: bold; font-size: 13px; color: #001935; }
-        input { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; margin-top: 5px; }
-        button { grid-column: span 2; padding: 12px; background: #001935; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
-        .chart-container { height: 350px; margin-bottom: 30px; }
-        table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 10px; margin-bottom: 40px; } /* Added margin-bottom here */
-        th { background: #001935; color: white; padding: 10px; }
-        td { border: 1px solid #eee; padding: 8px; text-align: center; }
+        body { font-family: -apple-system, sans-serif; background: #ffffff; padding: 10px; color: #333; }
+        .container { max-width: 750px; margin: auto; padding-bottom: 100px; } /* Extra bottom padding */
+        .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; background: #f4f7f9; padding: 15px; border-radius: 8px; margin-bottom: 15px; }
+        label { display: block; font-weight: bold; font-size: 12px; color: #001935; }
+        input { width: 100%; padding: 6px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; margin-top: 4px; font-size: 14px; }
+        button { grid-column: span 2; padding: 10px; background: #001935; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; margin-top: 5px; }
+        .chart-container { height: 300px; margin-bottom: 20px; position: relative; } /* Slightly shorter chart */
+        table { width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 30px; }
+        th { background: #001935; color: white; padding: 8px; }
+        td { border: 1px solid #eee; padding: 6px; text-align: center; }
         
-        /* Styled Footer Link */
         .footer-nav { 
             text-align: center; 
             padding: 20px 0; 
-            border-top: 2px solid #f4f7f9;
-            background: #fff;
+            border-top: 1px solid #eee;
+            margin-top: 20px;
         }
         .footer-nav a { 
-            color: #41797e; 
+            color: #ffffff; 
+            background-color: #41797e;
             font-weight: bold; 
             text-decoration: none; 
-            font-size: 16px; 
+            font-size: 14px; 
             display: inline-block;
-            padding: 10px 20px;
-            border: 1px solid #41797e;
-            border-radius: 5px;
-        }
-        .footer-nav a:hover {
-            background: #41797e;
-            color: white;
+            padding: 12px 24px;
+            border-radius: 4px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
     </style>
 </head>
@@ -44,10 +40,10 @@
 
 <div class="container">
     <div class="controls">
-        <div><label>Initial Principal ($)</label><input type="number" id="p" value="100000"></div>
-        <div><label>Annual Contribution ($)</label><input type="number" id="c" value="10000"></div>
-        <div><label>Expected Return (%)</label><input type="number" id="r" value="7"></div>
-        <div><label>Volatility (SD %)</label><input type="number" id="sd" value="12"></div>
+        <div><label>Principal ($)</label><input type="number" id="p" value="100000"></div>
+        <div><label>Annual Contrib ($)</label><input type="number" id="c" value="10000"></div>
+        <div><label>Return (%)</label><input type="number" id="r" value="7"></div>
+        <div><label>Volatility (%)</label><input type="number" id="sd" value="12"></div>
         <button onclick="runSimulation()">Update Simulation</button>
     </div>
 
@@ -57,14 +53,14 @@
 
     <table id="dataTable">
         <thead>
-            <tr><th>Year</th><th>Conservative (P10)</th><th>Likely (Median)</th><th>Aggressive (P90)</th></tr>
+            <tr><th>Year</th><th>Conservative</th><th>Median</th><th>Aggressive</th></tr>
         </thead>
         <tbody></tbody>
     </table>
 
     <div class="footer-nav">
         <a href="https://camacconsulting.github.io/MonteCarloInvestmentGrowthSimulator/" target="_blank">
-            OPEN IN FULL WINDOW ↗
+            VIEW FULL SCREEN ↗
         </a>
     </div>
 </div>
@@ -106,42 +102,4 @@ function runSimulation() {
         data: {
             labels: labels,
             datasets: [
-                { 
-                    label: 'Median (Likely)', 
-                    data: p50, 
-                    borderColor: '#41797e', 
-                    borderWidth: 3,
-                    fill: false 
-                },
-                { 
-                    label: 'Aggressive (P90)', 
-                    data: p90, 
-                    borderColor: '#001935', 
-                    backgroundColor: 'rgba(0, 25, 53, 0.15)', 
-                    fill: 2, 
-                    pointRadius: 0,
-                    borderWidth: 2
-                },
-                { 
-                    label: '', 
-                    data: p10, 
-                    pointRadius: 0, 
-                    fill: false, 
-                    borderColor: 'rgba(0, 25, 53, 0.2)', 
-                    borderDash: [5, 5] 
-                }
-            ]
-        },
-        options: { 
-            responsive: true, 
-            maintainAspectRatio: false,
-            scales: {
-                y: { ticks: { callback: function(value) { return '$' + value.toLocaleString(); } } }
-            }
-        }
-    });
-}
-window.onload = runSimulation;
-</script>
-</body>
-</html>
+                { label: 'Median', data: p50, borderColor: '#41797e', borderWidth: 3
