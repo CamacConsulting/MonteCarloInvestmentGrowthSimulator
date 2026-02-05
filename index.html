@@ -6,33 +6,38 @@
     <title>Monte Carlo Growth Simulator</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        body { font-family: -apple-system, sans-serif; background: #ffffff; padding: 10px; color: #333; }
-        .container { max-width: 750px; margin: auto; padding-bottom: 100px; } /* Extra bottom padding */
+        body { font-family: -apple-system, sans-serif; background: #ffffff; padding: 10px; color: #333; margin: 0; }
+        .container { max-width: 750px; margin: auto; padding-bottom: 80px; } 
         .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; background: #f4f7f9; padding: 15px; border-radius: 8px; margin-bottom: 15px; }
-        label { display: block; font-weight: bold; font-size: 12px; color: #001935; }
+        label { display: block; font-weight: bold; font-size: 11px; color: #001935; text-transform: uppercase; }
         input { width: 100%; padding: 6px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; margin-top: 4px; font-size: 14px; }
-        button { grid-column: span 2; padding: 10px; background: #001935; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; margin-top: 5px; }
-        .chart-container { height: 300px; margin-bottom: 20px; position: relative; } /* Slightly shorter chart */
-        table { width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 30px; }
+        button { grid-column: span 2; padding: 12px; background: #001935; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; margin-top: 5px; }
+        .chart-container { height: 300px; margin-bottom: 20px; position: relative; }
+        table { width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 20px; }
         th { background: #001935; color: white; padding: 8px; }
         td { border: 1px solid #eee; padding: 6px; text-align: center; }
         
+        /* Fixed Footer Link */
         .footer-nav { 
-            text-align: center; 
-            padding: 20px 0; 
-            border-top: 1px solid #eee;
-            margin-top: 20px;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background: #fff;
+            padding: 10px 0;
+            border-top: 1px solid #ddd;
+            text-align: center;
+            z-index: 100;
         }
         .footer-nav a { 
             color: #ffffff; 
             background-color: #41797e;
             font-weight: bold; 
             text-decoration: none; 
-            font-size: 14px; 
+            font-size: 13px; 
             display: inline-block;
-            padding: 12px 24px;
+            padding: 8px 20px;
             border-radius: 4px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
     </style>
 </head>
@@ -40,10 +45,12 @@
 
 <div class="container">
     <div class="controls">
-        <div><label>Principal ($)</label><input type="number" id="p" value="100000"></div>
+        <div><label>Initial Principal ($)</label><input type="number" id="p" value="100000"></div>
         <div><label>Annual Contrib ($)</label><input type="number" id="c" value="10000"></div>
-        <div><label>Return (%)</label><input type="number" id="r" value="7"></div>
-        <div><label>Volatility (%)</label><input type="number" id="sd" value="12"></div>
+        <div><label>Expected Return (%)</label><input type="number" id="r" value="7"></div>
+        <div><label>Volatility (SD %)</label><input type="number" id="sd" value="12"></div>
+        <div><label>Inflation (%)</label><input type="number" id="infl" value="2.5"></div>
+        <div><label>Years to Project</label><input type="number" id="y" value="25"></div>
         <button onclick="runSimulation()">Update Simulation</button>
     </div>
 
@@ -57,12 +64,12 @@
         </thead>
         <tbody></tbody>
     </table>
+</div>
 
-    <div class="footer-nav">
-        <a href="https://camacconsulting.github.io/MonteCarloInvestmentGrowthSimulator/" target="_blank">
-            VIEW FULL SCREEN ↗
-        </a>
-    </div>
+<div class="footer-nav">
+    <a href="https://camacconsulting.github.io/MonteCarloInvestmentGrowthSimulator/" target="_blank">
+        VIEW FULL SCREEN ↗
+    </a>
 </div>
 
 <script>
@@ -73,33 +80,11 @@ function rnorm(m, s) {
 }
 
 function runSimulation() {
-    const P = parseFloat(document.getElementById('p').value), C = parseFloat(document.getElementById('c').value);
-    const R = parseFloat(document.getElementById('r').value)/100, SD = parseFloat(document.getElementById('sd').value)/100;
-    let results = Array.from({length: 26}, () => []);
-
-    for(let s=0; s<1000; s++) {
-        let bal = P; results[0].push(bal);
-        for(let t=1; t<=25; t++) {
-            bal = (bal * (1 + rnorm(R, SD))) + C;
-            results[t].push(bal);
-        }
-    }
-
-    let labels = [], p10 = [], p50 = [], p90 = [], tableBody = "";
-    for(let t=0; t<=25; t++) {
-        results[t].sort((a,b) => a-b);
-        labels.push("Yr "+t);
-        p10.push(results[t][100]); p50.push(results[t][500]); p90.push(results[t][900]);
-        if(t%5===0 || t===25) {
-            tableBody += `<tr><td>${t}</td><td>$${Math.round(p10[t]).toLocaleString()}</td><td>$${Math.round(p50[t]).toLocaleString()}</td><td>$${Math.round(p90[t]).toLocaleString()}</td></tr>`;
-        }
-    }
-    document.querySelector("#dataTable tbody").innerHTML = tableBody;
+    const P = parseFloat(document.getElementById('p').value);
+    const C = parseFloat(document.getElementById('c').value);
+    const R = parseFloat(document.getElementById('r').value)/100;
+    const SD = parseFloat(document.getElementById('sd').value)/100;
+    const INFL = parseFloat(document.getElementById('infl').value)/100;
+    const years = parseInt(document.getElementById('y').value);
     
-    if(myChart) myChart.destroy();
-    myChart = new Chart(document.getElementById('growthChart'), {
-        type: 'line',
-        data: {
-            labels: labels,
-            datasets: [
-                { label: 'Median', data: p50, borderColor: '#41797e', borderWidth: 3
+    let results = Array.from({length: years + 1}, () => []);
