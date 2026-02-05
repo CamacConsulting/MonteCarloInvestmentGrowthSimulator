@@ -74,4 +74,59 @@ function runSimulation() {
         results[t].sort((a,b) => a-b);
         labels.push("Yr "+t);
         p10.push(results[t][100]); p50.push(results[t][500]); p90.push(results[t][900]);
-        if(t%
+        if(t%5===0 || t===25) {
+            tableBody += `<tr><td>${t}</td><td>$${Math.round(p10[t]).toLocaleString()}</td><td>$${Math.round(p50[t]).toLocaleString()}</td><td>$${Math.round(p90[t]).toLocaleString()}</td></tr>`;
+        }
+    }
+    document.querySelector("#dataTable tbody").innerHTML = tableBody;
+    
+    if(myChart) myChart.destroy();
+    myChart = new Chart(document.getElementById('growthChart'), {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [
+                { 
+                    label: 'Median', 
+                    data: p50, 
+                    borderColor: '#41797e', // Teal for contrast
+                    borderWidth: 2,
+                    fill: false 
+                },
+                { 
+                    label: 'Aggressive (P90)', 
+                    data: p90, 
+                    borderColor: '#001935', // YOUR DARK NAVY BLUE
+                    backgroundColor: 'rgba(0, 25, 53, 0.15)', // Light navy fill
+                    fill: 2, 
+                    pointRadius: 0,
+                    borderWidth: 2
+                },
+                { 
+                    label: 'Conservative (P10)', 
+                    data: p10, 
+                    pointRadius: 0, 
+                    fill: false, 
+                    borderColor: 'rgba(0, 25, 53, 0.1)', // Light navy border
+                    borderDash: [5, 5] // Dashed line for distinction
+                }
+            ]
+        },
+        options: { 
+            responsive: true, 
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    labels: {
+                        // Filter out the empty label for P10 so the legend stays clean
+                        filter: function(item) { return item.text !== ""; }
+                    }
+                }
+            }
+        }
+    });
+}
+window.onload = runSimulation;
+</script>
+</body>
+</html>
