@@ -79,4 +79,69 @@ function rnorm(m, s) {
 function runSimulation() {
     const P = parseFloat(document.getElementById('p').value), C = parseFloat(document.getElementById('c').value);
     const R = parseFloat(document.getElementById('r').value)/100, SD = parseFloat(document.getElementById('sd').value)/100;
-    let results = Array.from({length: 26}, () =>
+    let results = Array.from({length: 26}, () => []);
+
+    for(let s=0; s<1000; s++) {
+        let bal = P; results[0].push(bal);
+        for(let t=1; t<=25; t++) {
+            bal = (bal * (1 + rnorm(R, SD))) + C;
+            results[t].push(bal);
+        }
+    }
+
+    let labels = [], p10 = [], p50 = [], p90 = [], tableBody = "";
+    for(let t=0; t<=25; t++) {
+        results[t].sort((a,b) => a-b);
+        labels.push("Yr "+t);
+        p10.push(results[t][100]); p50.push(results[t][500]); p90.push(results[t][900]);
+        if(t%5===0 || t===25) {
+            tableBody += `<tr><td>${t}</td><td>$${Math.round(p10[t]).toLocaleString()}</td><td>$${Math.round(p50[t]).toLocaleString()}</td><td>$${Math.round(p90[t]).toLocaleString()}</td></tr>`;
+        }
+    }
+    document.querySelector("#dataTable tbody").innerHTML = tableBody;
+    
+    if(myChart) myChart.destroy();
+    myChart = new Chart(document.getElementById('growthChart'), {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [
+                { 
+                    label: 'Median (Likely)', 
+                    data: p50, 
+                    borderColor: '#41797e', 
+                    borderWidth: 3,
+                    fill: false 
+                },
+                { 
+                    label: 'Aggressive (P90)', 
+                    data: p90, 
+                    borderColor: '#001935', 
+                    backgroundColor: 'rgba(0, 25, 53, 0.15)', 
+                    fill: 2, 
+                    pointRadius: 0,
+                    borderWidth: 2
+                },
+                { 
+                    label: '', 
+                    data: p10, 
+                    pointRadius: 0, 
+                    fill: false, 
+                    borderColor: 'rgba(0, 25, 53, 0.2)', 
+                    borderDash: [5, 5] 
+                }
+            ]
+        },
+        options: { 
+            responsive: true, 
+            maintainAspectRatio: false,
+            scales: {
+                y: { ticks: { callback: function(value) { return '$' + value.toLocaleString(); } } }
+            }
+        }
+    });
+}
+window.onload = runSimulation;
+</script>
+</body>
+</html>
