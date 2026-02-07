@@ -11,7 +11,6 @@
         .controls { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; background: #f4f7f9; padding: 15px; border-radius: 8px; margin-bottom: 15px; }
         label { display: block; font-weight: bold; font-size: 11px; color: #001935; text-transform: uppercase; }
         input, select { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; margin-top: 4px; font-size: 14px; }
-        .full-width { grid-column: span 3; }
         button { grid-column: span 3; padding: 12px; background: #001935; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; margin-top: 5px; }
         button:disabled { background: #666; cursor: not-allowed; }
         
@@ -25,6 +24,8 @@
         .spinner { width: 40px; height: 40px; border: 4px solid #f3f3f3; border-top: 4px solid #41797e; border-radius: 50%; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
+        .crash-section { grid-column: span 3; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding-top: 10px; border-top: 1px solid #ddd; margin-top: 5px; }
+        
         table { width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 20px; }
         th { background: #001935; color: white; padding: 8px; }
         td { border: 1px solid #eee; padding: 8px; text-align: center; }
@@ -53,12 +54,10 @@
         
         <div><label>Years</label><input type="number" id="y" value="25"></div>
         <div><label>Scenarios</label><input type="number" id="s" value="1000"></div>
-        <div>
-            <label>Year 1 Crash?</label>
-            <select id="crash">
-                <option value="0">None</option>
-                <option value="0.25">25% Market Drop</option>
-            </select>
+        
+        <div class="crash-section">
+            <div><label>Custom Crash Year</label><input type="number" id="crashYear" value="1"></div>
+            <div><label>Crash Amount (%)</label><input type="number" id="crashPct" value="0"></div>
         </div>
         
         <button id="runBtn" onclick="handleButtonClick()">Update Simulation</button>
@@ -78,7 +77,7 @@
 </div>
 
 <div class="footer-nav">
-    <a href="#" onclick="return false;">VIEW FULL SCREEN ↗</a>
+    <a href="https://camacconsulting.github.io/MonteCarloInvestmentGrowthSimulator/" target="_blank">VIEW FULL SCREEN ↗</a>
 </div>
 
 <script>
@@ -107,7 +106,9 @@ function runSimulation() {
         const INFL = (parseFloat(document.getElementById('infl').value) || 0) / 100;
         const years = parseInt(document.getElementById('y').value) || 1;
         const numScenarios = parseInt(document.getElementById('s').value) || 100;
-        const crashAmount = parseFloat(document.getElementById('crash').value);
+        
+        const crashYear = parseInt(document.getElementById('crashYear').value);
+        const crashPct = (parseFloat(document.getElementById('crashPct').value) || 0) / 100;
         
         let results = Array.from({length: years + 1}, () => []);
         let successes = 0;
@@ -116,21 +117,22 @@ function runSimulation() {
             let bal = P; 
             results[0].push(bal);
             for(let t=1; t<=years; t++) {
-                let currentReturn = rnorm(R, SD);
+                let currentReturn;
                 
-                // Apply Year 1 Crash if selected
-                if(t === 1 && crashAmount > 0) {
-                    currentReturn = -crashAmount;
+                // Check if this is the chosen crash year
+                if(t === crashYear && crashPct !== 0) {
+                    currentReturn = -crashPct;
+                } else {
+                    currentReturn = rnorm(R, SD);
                 }
 
                 bal = (bal * (1 + currentReturn)) + C;
                 results[t].push(bal / Math.pow(1 + INFL, t));
             }
-            // Check if final year balance hits goal
+            // Logic for Success: check final year against goal
             if(results[years][s] >= Goal) successes++;
         }
 
-        // Update Success Rate UI
         const rate = ((successes / numScenarios) * 100).toFixed(1);
         document.getElementById('successRate').innerText = rate + "%";
 
