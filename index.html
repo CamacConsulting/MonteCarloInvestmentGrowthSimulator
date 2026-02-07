@@ -3,59 +3,63 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Monte Carlo Growth Simulator</title>
+    <title>Advanced Monte Carlo Simulator</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
     <style>
         body { font-family: -apple-system, sans-serif; background: #ffffff; padding: 10px; color: #333; margin: 0; }
-        .container { max-width: 750px; margin: auto; padding-bottom: 100px; } 
-        .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; background: #f4f7f9; padding: 15px; border-radius: 8px; margin-bottom: 15px; }
+        .container { max-width: 800px; margin: auto; padding-bottom: 100px; } 
+        .controls { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; background: #f4f7f9; padding: 15px; border-radius: 8px; margin-bottom: 15px; }
         label { display: block; font-weight: bold; font-size: 11px; color: #001935; text-transform: uppercase; }
-        input { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; margin-top: 4px; font-size: 14px; }
-        button { grid-column: span 2; padding: 12px; background: #001935; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; margin-top: 5px; }
+        input, select { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; margin-top: 4px; font-size: 14px; }
+        .full-width { grid-column: span 3; }
+        button { grid-column: span 3; padding: 12px; background: #001935; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; margin-top: 5px; }
         button:disabled { background: #666; cursor: not-allowed; }
         
+        .stats-bar { display: grid; grid-template-columns: 1fr; gap: 10px; margin-bottom: 15px; text-align: center; }
+        .stat-card { background: #41797e; color: white; padding: 15px; border-radius: 8px; }
+        .stat-card h2 { margin: 0; font-size: 24px; }
+        .stat-card p { margin: 0; font-size: 12px; text-transform: uppercase; opacity: 0.9; }
+
         .chart-container { height: 350px; margin-bottom: 20px; position: relative; background: #fff; border: 1px solid #eee; }
-        
-        /* Spinner Styles */
-        #loader {
-            display: none;
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            z-index: 10;
-        }
-        .spinner {
-            width: 40px;
-            height: 40px;
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid #41797e;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-        }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
+        #loader { display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 10; }
+        .spinner { width: 40px; height: 40px; border: 4px solid #f3f3f3; border-top: 4px solid #41797e; border-radius: 50%; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
         table { width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 20px; }
         th { background: #001935; color: white; padding: 8px; }
         td { border: 1px solid #eee; padding: 8px; text-align: center; }
         .footer-nav { position: fixed; bottom: 0; left: 0; width: 100%; background: #fff; padding: 15px 0; border-top: 1px solid #ddd; text-align: center; z-index: 1000; }
-        .footer-nav a { color: #ffffff; background-color: #41797e; font-weight: bold; text-decoration: none; font-size: 14px; display: inline-block; padding: 10px 25px; border-radius: 4px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+        .footer-nav a { color: #ffffff; background-color: #41797e; font-weight: bold; text-decoration: none; font-size: 14px; display: inline-block; padding: 10px 25px; border-radius: 4px; }
     </style>
 </head>
 <body>
 
 <div class="container">
+    <div class="stats-bar">
+        <div class="stat-card">
+            <p>Probability of Hitting Goal</p>
+            <h2 id="successRate">--%</h2>
+        </div>
+    </div>
+
     <div class="controls">
         <div><label>Principal ($)</label><input type="number" id="p" value="100000"></div>
         <div><label>Annual Contrib ($)</label><input type="number" id="c" value="10000"></div>
+        <div><label>Savings Goal ($)</label><input type="number" id="goal" value="1000000"></div>
+        
         <div><label>Return (%)</label><input type="number" id="r" value="7"></div>
         <div><label>Volatility (%)</label><input type="number" id="sd" value="12"></div>
         <div><label>Inflation (%)</label><input type="number" id="infl" value="2.5"></div>
+        
         <div><label>Years</label><input type="number" id="y" value="25"></div>
-        <div style="grid-column: span 2;"><label>Number of Scenarios</label><input type="number" id="s" value="1000"></div>
+        <div><label>Scenarios</label><input type="number" id="s" value="1000"></div>
+        <div>
+            <label>Year 1 Crash?</label>
+            <select id="crash">
+                <option value="0">None</option>
+                <option value="0.25">25% Market Drop</option>
+            </select>
+        </div>
         
         <button id="runBtn" onclick="handleButtonClick()">Update Simulation</button>
     </div>
@@ -74,7 +78,7 @@
 </div>
 
 <div class="footer-nav">
-    <a href="https://camacconsulting.github.io/MonteCarloInvestmentGrowthSimulator/" target="_blank">VIEW FULL SCREEN ↗</a>
+    <a href="#" onclick="return false;">VIEW FULL SCREEN ↗</a>
 </div>
 
 <script>
@@ -86,13 +90,10 @@ function rnorm(m, s) {
 }
 
 function handleButtonClick() {
-    // Show loader and disable button
     document.getElementById('loader').style.display = 'block';
     const btn = document.getElementById('runBtn');
     btn.disabled = true;
-    btn.innerText = "Processing...";
-
-    // Use setTimeout so the browser has a chance to render the spinner before blocking the thread with math
+    btn.innerText = "Simulating...";
     setTimeout(runSimulation, 50);
 }
 
@@ -100,22 +101,38 @@ function runSimulation() {
     try {
         const P = parseFloat(document.getElementById('p').value) || 0;
         const C = parseFloat(document.getElementById('c').value) || 0;
+        const Goal = parseFloat(document.getElementById('goal').value) || 0;
         const R = (parseFloat(document.getElementById('r').value) || 0) / 100;
         const SD = (parseFloat(document.getElementById('sd').value) || 0) / 100;
         const INFL = (parseFloat(document.getElementById('infl').value) || 0) / 100;
         const years = parseInt(document.getElementById('y').value) || 1;
         const numScenarios = parseInt(document.getElementById('s').value) || 100;
+        const crashAmount = parseFloat(document.getElementById('crash').value);
         
         let results = Array.from({length: years + 1}, () => []);
+        let successes = 0;
 
         for(let s=0; s<numScenarios; s++) {
             let bal = P; 
             results[0].push(bal);
             for(let t=1; t<=years; t++) {
-                bal = (bal * (1 + rnorm(R, SD))) + C;
+                let currentReturn = rnorm(R, SD);
+                
+                // Apply Year 1 Crash if selected
+                if(t === 1 && crashAmount > 0) {
+                    currentReturn = -crashAmount;
+                }
+
+                bal = (bal * (1 + currentReturn)) + C;
                 results[t].push(bal / Math.pow(1 + INFL, t));
             }
+            // Check if final year balance hits goal
+            if(results[years][s] >= Goal) successes++;
         }
+
+        // Update Success Rate UI
+        const rate = ((successes / numScenarios) * 100).toFixed(1);
+        document.getElementById('successRate').innerText = rate + "%";
 
         let labels = [], p10 = [], p50 = [], p90 = [], tableBody = "";
         const idx10 = Math.floor(numScenarios * 0.1);
@@ -155,17 +172,14 @@ function runSimulation() {
             }
         });
     } catch(err) {
-        console.error("Simulation error:", err);
+        console.error(err);
     } finally {
-        // Hide loader and re-enable button
         document.getElementById('loader').style.display = 'none';
         const btn = document.getElementById('runBtn');
         btn.disabled = false;
         btn.innerText = "Update Simulation";
     }
 }
-
-// Initial run
 handleButtonClick();
 </script>
 </body>
