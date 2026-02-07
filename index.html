@@ -25,12 +25,11 @@
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
         .crash-section { grid-column: span 3; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding-top: 10px; border-top: 1px solid #ddd; margin-top: 5px; }
+        .helper-text { grid-column: span 2; font-size: 10px; color: #666; font-style: italic; margin-bottom: 5px; }
         
         table { width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 20px; }
         th { background: #001935; color: white; padding: 8px; }
         td { border: 1px solid #eee; padding: 8px; text-align: center; }
-        .footer-nav { position: fixed; bottom: 0; left: 0; width: 100%; background: #fff; padding: 15px 0; border-top: 1px solid #ddd; text-align: center; z-index: 1000; }
-        .footer-nav a { color: #ffffff; background-color: #41797e; font-weight: bold; text-decoration: none; font-size: 14px; display: inline-block; padding: 10px 25px; border-radius: 4px; }
     </style>
 </head>
 <body>
@@ -56,8 +55,9 @@
         <div><label>Scenarios</label><input type="number" id="s" value="1000"></div>
         
         <div class="crash-section">
-            <div><label>Custom Crash Year</label><input type="number" id="crashYear" value="1"></div>
-            <div><label>Crash Amount (%)</label><input type="number" id="crashPct" value="0"></div>
+            <div class="helper-text">Separate multiple years/amounts with commas (e.g. Years: 1, 2 | Amounts: 15, 20)</div>
+            <div><label>Crash Years</label><input type="text" id="crashYears" value="1"></div>
+            <div><label>Crash Amounts (%)</label><input type="text" id="crashPcts" value="0"></div>
         </div>
         
         <button id="runBtn" onclick="handleButtonClick()">Update Simulation</button>
@@ -74,10 +74,6 @@
         </thead>
         <tbody></tbody>
     </table>
-</div>
-
-<div class="footer-nav">
-    <a href="https://camacconsulting.github.io/MonteCarloInvestmentGrowthSimulator/" target="_blank">VIEW FULL SCREEN ↗</a>
 </div>
 
 <script>
@@ -107,8 +103,15 @@ function runSimulation() {
         const years = parseInt(document.getElementById('y').value) || 1;
         const numScenarios = parseInt(document.getElementById('s').value) || 100;
         
-        const crashYear = parseInt(document.getElementById('crashYear').value);
-        const crashPct = (parseFloat(document.getElementById('crashPct').value) || 0) / 100;
+        // Parse Multiple Crashes
+        const crashYearsArray = document.getElementById('crashYears').value.split(',').map(x => parseInt(x.trim()));
+        const crashPctsArray = document.getElementById('crashPcts').value.split(',').map(x => (parseFloat(x.trim()) || 0) / 100);
+        
+        // Create a map for quick lookup: { Year: Percent }
+        let crashMap = {};
+        crashYearsArray.forEach((yr, index) => {
+            if(!isNaN(yr)) crashMap[yr] = crashPctsArray[index] || 0;
+        });
         
         let results = Array.from({length: years + 1}, () => []);
         let successes = 0;
@@ -119,9 +122,8 @@ function runSimulation() {
             for(let t=1; t<=years; t++) {
                 let currentReturn;
                 
-                // Check if this is the chosen crash year
-                if(t === crashYear && crashPct !== 0) {
-                    currentReturn = -crashPct;
+                if(crashMap[t] !== undefined && crashMap[t] !== 0) {
+                    currentReturn = -crashMap[t];
                 } else {
                     currentReturn = rnorm(R, SD);
                 }
@@ -129,7 +131,6 @@ function runSimulation() {
                 bal = (bal * (1 + currentReturn)) + C;
                 results[t].push(bal / Math.pow(1 + INFL, t));
             }
-            // Logic for Success: check final year against goal
             if(results[years][s] >= Goal) successes++;
         }
 
