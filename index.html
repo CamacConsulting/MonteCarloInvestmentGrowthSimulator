@@ -7,10 +7,10 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
     <style>
         body { font-family: -apple-system, sans-serif; background: #ffffff; padding: 10px; color: #333; margin: 0; }
-        .container { max-width: 800px; margin: auto; padding-bottom: 100px; } 
+        .container { max-width: 800px; margin: auto; padding-bottom: 120px; } 
         .controls { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; background: #f4f7f9; padding: 15px; border-radius: 8px; margin-bottom: 15px; }
         label { display: block; font-weight: bold; font-size: 11px; color: #001935; text-transform: uppercase; }
-        input, select { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; margin-top: 4px; font-size: 14px; }
+        input { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; margin-top: 4px; font-size: 14px; }
         button { grid-column: span 3; padding: 12px; background: #001935; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; margin-top: 5px; }
         button:disabled { background: #666; cursor: not-allowed; }
         
@@ -27,9 +27,12 @@
         .crash-section { grid-column: span 3; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding-top: 10px; border-top: 1px solid #ddd; margin-top: 5px; }
         .helper-text { grid-column: span 2; font-size: 10px; color: #666; font-style: italic; margin-bottom: 5px; }
         
-        table { width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 20px; }
+        table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 20px; }
         th { background: #001935; color: white; padding: 8px; }
         td { border: 1px solid #eee; padding: 8px; text-align: center; }
+
+        .footer-nav { position: fixed; bottom: 0; left: 0; width: 100%; background: #fff; padding: 15px 0; border-top: 1px solid #ddd; text-align: center; z-index: 1000; }
+        .footer-nav a { color: #ffffff; background-color: #41797e; font-weight: bold; text-decoration: none; font-size: 14px; display: inline-block; padding: 10px 25px; border-radius: 4px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
     </style>
 </head>
 <body>
@@ -76,6 +79,10 @@
     </table>
 </div>
 
+<div class="footer-nav">
+    <a href="https://camacconsulting.github.io/MonteCarloInvestmentGrowthSimulator/" target="_blank">VIEW FULL SCREEN ↗</a>
+</div>
+
 <script>
 let myChart;
 
@@ -103,11 +110,9 @@ function runSimulation() {
         const years = parseInt(document.getElementById('y').value) || 1;
         const numScenarios = parseInt(document.getElementById('s').value) || 100;
         
-        // Parse Multiple Crashes
         const crashYearsArray = document.getElementById('crashYears').value.split(',').map(x => parseInt(x.trim()));
         const crashPctsArray = document.getElementById('crashPcts').value.split(',').map(x => (parseFloat(x.trim()) || 0) / 100);
         
-        // Create a map for quick lookup: { Year: Percent }
         let crashMap = {};
         crashYearsArray.forEach((yr, index) => {
             if(!isNaN(yr)) crashMap[yr] = crashPctsArray[index] || 0;
@@ -121,13 +126,11 @@ function runSimulation() {
             results[0].push(bal);
             for(let t=1; t<=years; t++) {
                 let currentReturn;
-                
                 if(crashMap[t] !== undefined && crashMap[t] !== 0) {
                     currentReturn = -crashMap[t];
                 } else {
                     currentReturn = rnorm(R, SD);
                 }
-
                 bal = (bal * (1 + currentReturn)) + C;
                 results[t].push(bal / Math.pow(1 + INFL, t));
             }
