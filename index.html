@@ -12,7 +12,32 @@
         label { display: block; font-weight: bold; font-size: 11px; color: #001935; text-transform: uppercase; }
         input { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; margin-top: 4px; font-size: 14px; }
         button { grid-column: span 2; padding: 12px; background: #001935; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; margin-top: 5px; }
+        button:disabled { background: #666; cursor: not-allowed; }
+        
         .chart-container { height: 350px; margin-bottom: 20px; position: relative; background: #fff; border: 1px solid #eee; }
+        
+        /* Spinner Styles */
+        #loader {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 10;
+        }
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #41797e;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
         table { width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 20px; }
         th { background: #001935; color: white; padding: 8px; }
         td { border: 1px solid #eee; padding: 8px; text-align: center; }
@@ -32,10 +57,11 @@
         <div><label>Years</label><input type="number" id="y" value="25"></div>
         <div style="grid-column: span 2;"><label>Number of Scenarios</label><input type="number" id="s" value="1000"></div>
         
-        <button id="runBtn" onclick="runSimulation()">Update Simulation</button>
+        <button id="runBtn" onclick="handleButtonClick()">Update Simulation</button>
     </div>
 
     <div class="chart-container">
+        <div id="loader"><div class="spinner"></div></div>
         <canvas id="growthChart"></canvas>
     </div>
 
@@ -59,6 +85,17 @@ function rnorm(m, s) {
     return m + s * Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
 }
 
+function handleButtonClick() {
+    // Show loader and disable button
+    document.getElementById('loader').style.display = 'block';
+    const btn = document.getElementById('runBtn');
+    btn.disabled = true;
+    btn.innerText = "Processing...";
+
+    // Use setTimeout so the browser has a chance to render the spinner before blocking the thread with math
+    setTimeout(runSimulation, 50);
+}
+
 function runSimulation() {
     try {
         const P = parseFloat(document.getElementById('p').value) || 0;
@@ -71,7 +108,6 @@ function runSimulation() {
         
         let results = Array.from({length: years + 1}, () => []);
 
-        // Run Monte Carlo based on user-defined scenario count
         for(let s=0; s<numScenarios; s++) {
             let bal = P; 
             results[0].push(bal);
@@ -82,8 +118,6 @@ function runSimulation() {
         }
 
         let labels = [], p10 = [], p50 = [], p90 = [], tableBody = "";
-        
-        // Calculate dynamic indexes for percentiles
         const idx10 = Math.floor(numScenarios * 0.1);
         const idx50 = Math.floor(numScenarios * 0.5);
         const idx90 = Math.floor(numScenarios * 0.9);
@@ -91,8 +125,6 @@ function runSimulation() {
         for(let t=0; t<=years; t++) {
             results[t].sort((a,b) => a-b);
             labels.push("Year " + t);
-            
-            // Get values based on scenario count
             p10.push(results[t][idx10]); 
             p50.push(results[t][idx50]); 
             p90.push(results[t][idx90]);
@@ -124,10 +156,17 @@ function runSimulation() {
         });
     } catch(err) {
         console.error("Simulation error:", err);
+    } finally {
+        // Hide loader and re-enable button
+        document.getElementById('loader').style.display = 'none';
+        const btn = document.getElementById('runBtn');
+        btn.disabled = false;
+        btn.innerText = "Update Simulation";
     }
 }
 
-setTimeout(runSimulation, 500); 
+// Initial run
+handleButtonClick();
 </script>
 </body>
 </html>
