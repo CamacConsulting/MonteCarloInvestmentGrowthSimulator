@@ -9,7 +9,7 @@
         
         body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--navy); margin: 0; padding-bottom: 100px; }
         
-        /* The "Full Screen" Link Style you liked */
+        /* The "Professional Link" footer style */
         .footer-nav { 
             position: fixed; bottom: 0; left: 0; width: 100%; 
             background: var(--navy); padding: 20px 0; text-align: center; 
@@ -23,14 +23,21 @@
         header { background: var(--navy); color: white; padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; }
         .container { max-width: 1200px; margin: 30px auto; padding: 0 20px; transition: 0.3s; }
         
-        /* Cinema Mode: Makes the chart fill the window without a refresh */
-        .cinema-mode { max-width: 95% !important; margin-top: 10px !important; }
+        /* FIXED: Pseudo-Fullscreen Logic (Bypasses Permissions Policy) */
+        .cinema-mode { 
+            position: fixed !important; 
+            top: 0 !important; left: 0 !important; 
+            width: 100vw !important; height: 100vh !important; 
+            z-index: 9998 !important; 
+            background: white !important;
+            padding: 40px !important;
+            box-sizing: border-box;
+            overflow-y: auto;
+        }
 
         .panel { background: white; padding: 30px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); }
-        
         .upload-box { border: 2px dashed #cbd5e1; padding: 50px; text-align: center; border-radius: 12px; background: #fafafa; cursor: pointer; }
-        .upload-box:hover { background: #f0fdfa; border-color: var(--teal); }
-
+        
         #stats { display: none; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 25px; }
         .stat-card { background: var(--navy); color: white; padding: 20px; border-radius: 12px; text-align: center; }
         .stat-card div { font-size: 28px; font-weight: 800; color: var(--accent); }
@@ -38,8 +45,8 @@
         .controls { display: none; margin-bottom: 20px; background: #f8fafc; padding: 20px; border-radius: 10px; }
         .grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; }
         
-        canvas { width: 100%; height: 550px; display: block; margin-top: 20px; }
-
+        canvas { width: 100%; height: 500px; display: block; margin-top: 20px; }
+        
         label { font-size: 11px; font-weight: bold; color: #64748b; text-transform: uppercase; }
         select, input { width: 100%; padding: 10px; margin-top: 5px; border-radius: 6px; border: 1px solid #ddd; }
     </style>
@@ -55,23 +62,23 @@
     <div class="panel" id="uploadPanel">
         <div class="upload-box" onclick="document.getElementById('fileIn').click()">
             <h2 style="margin-top:0;">Intelligence Dashboard</h2>
-            <p>Click to upload your Excel or CSV data file</p>
+            <p>Deploy dataset to initialize analytics engine</p>
             <input type="file" id="fileIn" accept=".xlsx, .xls, .csv" style="display:none">
         </div>
     </div>
 
     <div id="stats">
-        <div class="stat-card"><small>AVERAGE</small><div id="outAvg">0</div></div>
-        <div class="stat-card"><small>TREND</small><div id="outTrend">---</div></div>
+        <div class="stat-card"><small>OPERATIONAL AVG</small><div id="outAvg">0</div></div>
+        <div class="stat-card"><small>MOMENTUM</small><div id="outTrend">---</div></div>
         <div class="stat-card"><small>FORECAST</small><div id="outFore">0</div></div>
     </div>
 
     <div class="panel" id="appContent" style="display:none">
-        <div class="controls">
+        <div class="controls" id="controlRow" style="display:block">
             <div class="grid">
-                <div><label>Labels</label><select id="selX" onchange="draw()"></select></div>
-                <div><label>Values</label><select id="selY" onchange="draw()"></select></div>
-                <div><label>Target</label><input type="number" id="goal" oninput="draw()" placeholder="0"></div>
+                <div><label>Temporal Axis</label><select id="selX" onchange="draw()"></select></div>
+                <div><label>Metric Volume</label><select id="selY" onchange="draw()"></select></div>
+                <div><label>Performance Goal</label><input type="number" id="goal" oninput="draw()" placeholder="0"></div>
             </div>
         </div>
         <canvas id="pulseCanvas"></canvas>
@@ -79,7 +86,7 @@
 </div>
 
 <div class="footer-nav">
-    <a id="toggleBtn" onclick="toggleCinema()">VIEW FULL SCREEN ↗</a>
+    <a id="toggleBtn" onclick="toggleCinema()">MAXIMIZE INTELLIGENCE VIEW ↗</a>
 </div>
 
 <script>
@@ -111,21 +118,27 @@
         draw();
     }
 
+    // FIXED: This now uses CSS Fixed Positioning instead of the blocked requestFullscreen()
     function toggleCinema() {
-        const layout = document.getElementById('mainLayout');
+        const appContent = document.getElementById('appContent');
         const btn = document.getElementById('toggleBtn');
-        if(layout.classList.contains('cinema-mode')) {
-            layout.classList.remove('cinema-mode');
-            btn.innerText = "VIEW FULL SCREEN ↗";
+        
+        if(appContent.classList.contains('cinema-mode')) {
+            appContent.classList.remove('cinema-mode');
+            btn.innerText = "MAXIMIZE INTELLIGENCE VIEW ↗";
+            document.body.style.overflow = "auto";
         } else {
-            layout.classList.add('cinema-mode');
-            btn.innerText = "EXIT FULL SCREEN ✕";
+            appContent.classList.add('cinema-mode');
+            btn.innerText = "EXIT FULL VIEW ✕";
+            document.body.style.overflow = "hidden"; // Prevent scrolling behind the view
         }
-        draw();
+        draw(); // Redraw the chart to fill the new space
     }
 
     function draw() {
         const canvas = document.getElementById('pulseCanvas'), ctx = canvas.getContext('2d');
+        if(!rawData.length) return;
+
         const xK = document.getElementById('selX').value, yK = document.getElementById('selY').value;
         const goal = parseFloat(document.getElementById('goal').value) || 0;
 
@@ -148,14 +161,13 @@
         ctx.scale(dpr, dpr);
         const w = canvas.offsetWidth, h = canvas.offsetHeight;
         
-        // Final visibility fix
         const pL = 80, pR = 250, pT = 80, pB = 100;
         const max = Math.max(...ys, (m*n+b), goal) * 1.5;
         const step = (w - pL - pR) / (n - 1 || 1);
 
         ctx.clearRect(0,0,w,h);
 
-        // Y-Axis
+        // Y Grid
         ctx.strokeStyle = "#f1f5f9"; ctx.fillStyle = "#94a3b8"; ctx.font = "bold 10px sans-serif";
         for(let i=0; i<=5; i++) {
             const val = Math.round(max/5*i), y = (h-pB)-(val/max*(h-pB-pT));
@@ -163,34 +175,25 @@
             ctx.textAlign = "right"; ctx.fillText(val.toLocaleString(), pL-15, y+4);
         }
 
+        // Line & Area
+        ctx.strokeStyle = "var(--teal)"; ctx.lineWidth = 4; ctx.beginPath();
+        pts.forEach((p, i) => {
+            const x = pL+(i*step), y = (h-pB)-(p.y/max*(h-pB-pT));
+            if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+            
+            // Labels
+            ctx.save(); ctx.translate(x, h-pB+30); ctx.rotate(Math.PI/4);
+            ctx.textAlign="left"; ctx.fillText(p.x, 0, 0); ctx.restore();
+        });
+        ctx.stroke();
+
         // Target Line
         if(goal > 0) {
             const gy = (h-pB)-(goal/max*(h-pB-pT));
             ctx.strokeStyle = "#e11d48"; ctx.lineWidth = 2;
             ctx.beginPath(); ctx.moveTo(pL, gy); ctx.lineTo(w-pR, gy); ctx.stroke();
-            ctx.fillStyle = "#e11d48"; ctx.textAlign="left"; ctx.fillText("TARGET GOAL", w-pR+10, gy+4);
+            ctx.fillStyle = "#e11d48"; ctx.textAlign="left"; ctx.fillText("TARGET", w-pR+10, gy+4);
         }
-
-        // Forecast Point
-        const fy = (h-pB)-((m*n+b)/max*(h-pB-pT)), fx = pL+(n*step);
-        ctx.setLineDash([5,5]); ctx.strokeStyle = "#94a3b8"; 
-        ctx.beginPath(); ctx.moveTo(pL+((n-1)*step), (h-pB)-(pts[n-1].y/max*(h-pB-pT)));
-        ctx.lineTo(fx, fy); ctx.stroke();
-        ctx.setLineDash([]);
-        
-        ctx.fillStyle = "var(--navy)"; ctx.beginPath(); ctx.arc(fx, fy, 8, 0, 7); ctx.fill();
-        ctx.fillStyle = "var(--navy)"; ctx.font = "bold 13px sans-serif"; ctx.textAlign="left";
-        ctx.fillText("FORECAST POINT", fx+15, fy+5);
-
-        // Line
-        ctx.strokeStyle = "var(--teal)"; ctx.lineWidth = 4; ctx.beginPath();
-        pts.forEach((p, i) => {
-            const x = pL+(i*step), y = (h-pB)-(p.y/max*(h-pB-pT));
-            if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
-            ctx.save(); ctx.translate(x, h-pB+30); ctx.rotate(Math.PI/4);
-            ctx.fillStyle = "#64748b"; ctx.textAlign="left"; ctx.fillText(p.x, 0, 0); ctx.restore();
-        });
-        ctx.stroke();
     }
 </script>
 </body>
