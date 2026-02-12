@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Advanced Monte Carlo Simulator</title>
+    <title>Advanced Monte Carlo Simulator | Camac Consulting</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
     <style>
         body { font-family: -apple-system, sans-serif; background: #ffffff; padding: 10px; color: #333; margin: 0; }
@@ -31,12 +31,18 @@
         .crash-section { grid-column: span 3; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding-top: 10px; border-top: 1px solid #ddd; margin-top: 5px; }
         .helper-text { grid-column: span 2; font-size: 10px; color: #666; font-style: italic; margin-bottom: 5px; }
         
-        /* Unified styling for all italics disclaimers */
         .cap-disclaimer { font-size: 9px; color: #666; font-style: italic; margin-top: 4px; line-height: 1.2; }
         
-        table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 20px; }
-        th { background: #001935; color: white; padding: 8px; }
-        td { border: 1px solid #eee; padding: 8px; text-align: center; }
+        /* Table and Table Watermark */
+        table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 20px; position: relative; }
+        th { background: #001935; color: white; padding: 8px; position: relative; z-index: 2; }
+        td { border: 1px solid #eee; padding: 8px; text-align: center; position: relative; z-index: 2; }
+        
+        #dataTable tbody {
+            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="200" height="100"><text x="50%" y="50%" font-family="sans-serif" font-size="14" fill="rgba(65, 121, 126, 0.15)" text-anchor="middle" font-weight="bold">CAMAC CONSULTING</text></svg>');
+            background-repeat: no-repeat;
+            background-position: center;
+        }
 
         .footer-nav { position: fixed; bottom: 0; left: 0; width: 100%; background: #fff; padding: 15px 0; border-top: 1px solid #ddd; text-align: center; z-index: 1000; }
         .footer-nav a { color: #ffffff; background-color: #41797e; font-weight: bold; text-decoration: none; font-size: 14px; display: inline-block; padding: 10px 25px; border-radius: 4px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
@@ -222,12 +228,66 @@ function runSimulation() {
             data: {
                 labels: labels,
                 datasets: [
-                    { label: 'Median', data: p50, borderColor: '#41797e', borderWidth: 3, fill: false },
-                    { label: 'Aggressive', data: p90, borderColor: '#001935', backgroundColor: 'rgba(0, 25, 53, 0.1)', fill: 2, pointRadius: 0 },
-                    { label: 'Conservative', data: p10, pointRadius: 0, fill: false, borderColor: 'rgba(0, 25, 53, 0.2)', borderDash: [5, 5] }
+                    { label: 'Median', data: p50, borderColor: '#41797e', borderWidth: 3, fill: false, pointHoverRadius: 6 },
+                    { label: 'Aggressive', data: p90, borderColor: '#001935', backgroundColor: 'rgba(0, 25, 53, 0.1)', fill: 2, pointRadius: 0, pointHoverRadius: 6 },
+                    { label: 'Conservative', data: p10, pointRadius: 0, fill: false, borderColor: 'rgba(0, 25, 53, 0.2)', borderDash: [5, 5], pointHoverRadius: 6 }
                 ]
             },
-            options: { responsive: true, maintainAspectRatio: false, scales: { y: { ticks: { callback: v => '$' + v.toLocaleString() } } } }
+            options: { 
+                responsive: true, 
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            label: (ctx) => `${ctx.dataset.label}: $${Math.round(ctx.parsed.y).toLocaleString()}`
+                        }
+                    }
+                },
+                scales: { 
+                    y: { ticks: { callback: v => '$' + v.toLocaleString() } } 
+                }
+            },
+            plugins: [{
+                id: 'watermark',
+                beforeDraw: (chart) => {
+                    const ctx = chart.ctx;
+                    const x = chart.width - 15;
+                    const y = 25;
+                    ctx.save();
+                    ctx.font = 'bold 12px sans-serif';
+                    ctx.fillStyle = 'rgba(65, 121, 126, 0.5)'; 
+                    ctx.textAlign = 'right';
+                    ctx.fillText('CAMAC CONSULTING', x, y);
+                    ctx.restore();
+                }
+            }, {
+                id: 'crosshair',
+                afterDraw: (chart) => {
+                    if (chart.tooltip?._active?.length) {
+                        const activePoint = chart.tooltip._active[0];
+                        const { ctx } = chart;
+                        const { x } = activePoint.element;
+                        const { y } = activePoint.element;
+                        const topY = chart.scales.y.top;
+                        const bottomY = chart.scales.y.bottom;
+                        const leftX = chart.scales.x.left;
+                        const rightX = chart.scales.x.right;
+
+                        ctx.save();
+                        ctx.beginPath();
+                        ctx.setLineDash([5, 5]);
+                        ctx.moveTo(x, topY);
+                        ctx.lineTo(x, bottomY);
+                        ctx.moveTo(leftX, y);
+                        ctx.lineTo(rightX, y);
+                        ctx.lineWidth = 1;
+                        ctx.strokeStyle = 'rgba(0, 25, 53, 0.4)';
+                        ctx.stroke();
+                        ctx.restore();
+                    }
+                }
+            }]
         });
     } catch(err) { console.error(err); } finally {
         document.getElementById('loader').style.display = 'none';
