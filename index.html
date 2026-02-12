@@ -11,8 +11,13 @@
         .controls { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; background: #f4f7f9; padding: 15px; border-radius: 8px; margin-bottom: 15px; }
         label { display: block; font-weight: bold; font-size: 11px; color: #001935; text-transform: uppercase; }
         input { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; margin-top: 4px; font-size: 14px; }
-        button { grid-column: span 3; padding: 12px; background: #001935; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; margin-top: 5px; }
-        button:disabled { background: #666; cursor: not-allowed; }
+        
+        /* Button Styling */
+        .btn-group { grid-column: span 3; display: grid; grid-template-columns: 2fr 1fr; gap: 10px; margin-top: 5px; }
+        button { padding: 12px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 14px; }
+        #runBtn { background: #001935; color: white; }
+        #resetBtn { background: #ddd; color: #333; }
+        button:disabled { background: #666 !important; cursor: not-allowed; }
         
         .stats-bar { display: grid; grid-template-columns: 1fr; gap: 10px; margin-bottom: 15px; text-align: center; }
         .stat-card { background: #41797e; color: white; padding: 15px; border-radius: 8px; }
@@ -26,8 +31,6 @@
 
         .crash-section { grid-column: span 3; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding-top: 10px; border-top: 1px solid #ddd; margin-top: 5px; }
         .helper-text { grid-column: span 2; font-size: 10px; color: #666; font-style: italic; margin-bottom: 5px; }
-        
-        /* New styling for the disclaimers */
         .cap-disclaimer { font-size: 9px; color: #666; font-style: italic; margin-top: 4px; line-height: 1.1; }
         
         table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 20px; }
@@ -49,40 +52,44 @@
     </div>
 
     <div class="controls">
-        <div><label>Principal ($)</label><input type="number" id="p" value="100000"></div>
-        <div><label>Annual Contrib ($)</label><input type="number" id="c" value="10000"></div>
-        <div><label>Savings Goal ($)</label><input type="number" id="goal" value="1000000"></div>
+        <div><label>Principal ($)</label><input type="number" id="p" placeholder="0"></div>
+        <div><label>Annual Contrib ($)</label><input type="number" id="c" placeholder="0"></div>
+        <div><label>Savings Goal ($)</label><input type="number" id="goal" placeholder="0"></div>
         
         <div>
             <label>Return (%)</label>
-            <input type="number" id="r" value="7">
+            <input type="number" id="r" placeholder="0">
             <div class="cap-disclaimer">Expected annual average return.</div>
         </div>
         <div>
             <label>Volatility (%)</label>
-            <input type="number" id="sd" value="12">
+            <input type="number" id="sd" placeholder="0">
             <div class="cap-disclaimer">Annual market fluctuation (Std Dev).</div>
         </div>
         <div>
             <label>Inflation (%)</label>
-            <input type="number" id="infl" value="2.5">
+            <input type="number" id="infl" placeholder="0">
             <div class="cap-disclaimer">Adjusts results for purchasing power.</div>
         </div>
         
-        <div><label>Years</label><input type="number" id="y" value="25"></div>
+        <div><label>Years</label><input type="number" id="y" placeholder="0"></div>
+        
         <div>
             <label>Scenarios</label>
             <input type="number" id="s" value="50000" max="100000">
-            <div class="cap-disclaimer">Maximum allowed: 100,000 for performance stability.</div>
+            <div class="cap-disclaimer">Maximum allowed: 100,000 for stability.</div>
         </div>
         
         <div class="crash-section">
             <div class="helper-text">Separate multiple years/amounts with commas (e.g. Years: 1, 2 | Amounts: 15, 20)</div>
-            <div><label>Crash Years</label><input type="text" id="crashYears" value="1"></div>
-            <div><label>Crash Amounts (%)</label><input type="text" id="crashPcts" value="0"></div>
+            <div><label>Crash Years</label><input type="text" id="crashYears" placeholder="e.g. 1, 5"></div>
+            <div><label>Crash Amounts (%)</label><input type="text" id="crashPcts" placeholder="e.g. 20, 30"></div>
         </div>
         
-        <button id="runBtn" onclick="handleButtonClick()">Update Simulation</button>
+        <div class="btn-group">
+            <button id="runBtn" onclick="handleButtonClick()">Update Simulation</button>
+            <button id="resetBtn" onclick="resetFields()">Reset</button>
+        </div>
     </div>
 
     <div class="chart-container">
@@ -110,7 +117,20 @@ function rnorm(m, s) {
     return m + s * Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
 }
 
+function resetFields() {
+    const ids = ['p', 'c', 'goal', 'r', 'sd', 'infl', 'y', 'crashYears', 'crashPcts'];
+    ids.forEach(id => document.getElementById(id).value = '');
+    document.getElementById('s').value = '50000';
+    document.getElementById('successRate').innerText = '--%';
+    if(myChart) myChart.destroy();
+    document.querySelector("#dataTable tbody").innerHTML = "";
+}
+
 function handleButtonClick() {
+    if(!document.getElementById('y').value || !document.getElementById('s').value) {
+        alert("Please enter Years and Scenarios.");
+        return;
+    }
     document.getElementById('loader').style.display = 'block';
     const btn = document.getElementById('runBtn');
     btn.disabled = true;
@@ -126,9 +146,7 @@ function runSimulation() {
         const R = (parseFloat(document.getElementById('r').value) || 0) / 100;
         const SD = (parseFloat(document.getElementById('sd').value) || 0) / 100;
         const INFL = (parseFloat(document.getElementById('infl').value) || 0) / 100;
-        const years = parseInt(document.getElementById('y').value) || 1;
-        
-        // Capping scenarios at 100,000 to prevent browser hangs
+        const years = parseInt(document.getElementById('y').value) || 0;
         const rawScenarios = parseInt(document.getElementById('s').value) || 100;
         const numScenarios = Math.min(rawScenarios, 100000);
         
@@ -147,20 +165,14 @@ function runSimulation() {
             let bal = P; 
             results[0].push(bal);
             for(let t=1; t<=years; t++) {
-                let currentReturn;
-                if(crashMap[t] !== undefined && crashMap[t] !== 0) {
-                    currentReturn = -crashMap[t];
-                } else {
-                    currentReturn = rnorm(R, SD);
-                }
+                let currentReturn = (crashMap[t] !== undefined && crashMap[t] !== 0) ? -crashMap[t] : rnorm(R, SD);
                 bal = (bal * (1 + currentReturn)) + C;
                 results[t].push(bal / Math.pow(1 + INFL, t));
             }
             if(results[years][s] >= Goal) successes++;
         }
 
-        const rate = ((successes / numScenarios) * 100).toFixed(1);
-        document.getElementById('successRate').innerText = rate + "%";
+        document.getElementById('successRate').innerText = ((successes / numScenarios) * 100).toFixed(1) + "%";
 
         let labels = [], p10 = [], p50 = [], p90 = [], tableBody = "";
         const idx10 = Math.floor(numScenarios * 0.1);
@@ -170,45 +182,35 @@ function runSimulation() {
         for(let t=0; t<=years; t++) {
             results[t].sort((a,b) => a-b);
             labels.push("Year " + t);
-            p10.push(results[t][idx10]); 
-            p50.push(results[t][idx50]); 
-            p90.push(results[t][idx90]);
-            
+            p10.push(results[t][idx10] || 0); 
+            p50.push(results[t][idx50] || 0); 
+            p90.push(results[t][idx90] || 0);
             if(t % 5 === 0 || t === years) {
-                tableBody += `<tr><td>${t}</td><td>$${Math.round(p10[t] || 0).toLocaleString()}</td><td>$${Math.round(p50[t] || 0).toLocaleString()}</td><td>$${Math.round(p90[t] || 0).toLocaleString()}</td></tr>`;
+                tableBody += `<tr><td>${t}</td><td>$${Math.round(p10[t]).toLocaleString()}</td><td>$${Math.round(p50[t]).toLocaleString()}</td><td>$${Math.round(p90[t]).toLocaleString()}</td></tr>`;
             }
         }
         document.querySelector("#dataTable tbody").innerHTML = tableBody;
         
-        const canvas = document.getElementById('growthChart');
         if(myChart) myChart.destroy();
-        
-        myChart = new Chart(canvas, {
+        myChart = new Chart(document.getElementById('growthChart'), {
             type: 'line',
             data: {
                 labels: labels,
                 datasets: [
                     { label: 'Median', data: p50, borderColor: '#41797e', borderWidth: 3, fill: false },
-                    { label: 'Aggressive', data: p90, borderColor: '#001935', backgroundColor: 'rgba(0, 25, 53, 0.1)', fill: 2, pointRadius: 0, borderWidth: 2 },
+                    { label: 'Aggressive', data: p90, borderColor: '#001935', backgroundColor: 'rgba(0, 25, 53, 0.1)', fill: 2, pointRadius: 0 },
                     { label: 'Conservative', data: p10, pointRadius: 0, fill: false, borderColor: 'rgba(0, 25, 53, 0.2)', borderDash: [5, 5] }
                 ]
             },
-            options: { 
-                responsive: true, 
-                maintainAspectRatio: false,
-                scales: { y: { ticks: { callback: v => '$' + v.toLocaleString() } } }
-            }
+            options: { responsive: true, maintainAspectRatio: false, scales: { y: { ticks: { callback: v => '$' + v.toLocaleString() } } } }
         });
-    } catch(err) {
-        console.error(err);
-    } finally {
+    } catch(err) { console.error(err); } finally {
         document.getElementById('loader').style.display = 'none';
         const btn = document.getElementById('runBtn');
         btn.disabled = false;
         btn.innerText = "Update Simulation";
     }
 }
-handleButtonClick();
 </script>
 </body>
 </html>
