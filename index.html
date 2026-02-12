@@ -8,11 +8,10 @@
     <style>
         body { font-family: -apple-system, sans-serif; background: #ffffff; padding: 10px; color: #333; margin: 0; }
         .container { max-width: 800px; margin: auto; padding-bottom: 120px; } 
-        .controls { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; background: #f4f7f9; padding: 15px; border-radius: 8px; margin-bottom: 15px; }
+        .controls { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; background: #f4f7f9; padding: 15px; border-radius: 8px; margin-bottom: 15px; }
         label { display: block; font-weight: bold; font-size: 11px; color: #001935; text-transform: uppercase; }
         input { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; margin-top: 4px; font-size: 14px; }
         
-        /* Button Styling */
         .btn-group { grid-column: span 3; display: grid; grid-template-columns: 2fr 1fr; gap: 10px; margin-top: 5px; }
         button { padding: 12px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 14px; }
         #runBtn { background: #001935; color: white; }
@@ -31,7 +30,9 @@
 
         .crash-section { grid-column: span 3; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding-top: 10px; border-top: 1px solid #ddd; margin-top: 5px; }
         .helper-text { grid-column: span 2; font-size: 10px; color: #666; font-style: italic; margin-bottom: 5px; }
-        .cap-disclaimer { font-size: 9px; color: #666; font-style: italic; margin-top: 4px; line-height: 1.1; }
+        
+        /* Unified styling for all italics disclaimers */
+        .cap-disclaimer { font-size: 9px; color: #666; font-style: italic; margin-top: 4px; line-height: 1.2; }
         
         table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 20px; }
         th { background: #001935; color: white; padding: 8px; }
@@ -52,9 +53,21 @@
     </div>
 
     <div class="controls">
-        <div><label>Principal ($)</label><input type="number" id="p" placeholder="0"></div>
-        <div><label>Annual Contrib ($)</label><input type="number" id="c" placeholder="0"></div>
-        <div><label>Savings Goal ($)</label><input type="number" id="goal" placeholder="0"></div>
+        <div>
+            <label>Principal ($)</label>
+            <input type="number" id="p" placeholder="0">
+            <div class="cap-disclaimer">Initial investment amount.</div>
+        </div>
+        <div>
+            <label>Annual Contrib ($)</label>
+            <input type="number" id="c" placeholder="0">
+            <div class="cap-disclaimer">Amount added each year.</div>
+        </div>
+        <div>
+            <label>Savings Goal ($)</label>
+            <input type="number" id="goal" placeholder="0">
+            <div class="cap-disclaimer">Target amount to reach.</div>
+        </div>
         
         <div>
             <label>Return (%)</label>
@@ -72,18 +85,30 @@
             <div class="cap-disclaimer">Adjusts results for purchasing power.</div>
         </div>
         
-        <div><label>Years</label><input type="number" id="y" placeholder="0"></div>
-        
+        <div>
+            <label>Years</label>
+            <input type="number" id="y" placeholder="0">
+            <div class="cap-disclaimer">Length of the investment period.</div>
+        </div>
         <div>
             <label>Scenarios</label>
             <input type="number" id="s" value="50000" max="100000">
             <div class="cap-disclaimer">Maximum allowed: 100,000 for stability.</div>
         </div>
+        <div></div>
         
         <div class="crash-section">
-            <div class="helper-text">Separate multiple years/amounts with commas (e.g. Years: 1, 2 | Amounts: 15, 20)</div>
-            <div><label>Crash Years</label><input type="text" id="crashYears" placeholder="e.g. 1, 5"></div>
-            <div><label>Crash Amounts (%)</label><input type="text" id="crashPcts" placeholder="e.g. 20, 30"></div>
+            <div class="helper-text">Separate multiple years/amounts with commas.</div>
+            <div>
+                <label>Crash Years</label>
+                <input type="text" id="crashYears" placeholder="e.g. 1, 5">
+                <div class="cap-disclaimer">Specific years markets drop.</div>
+            </div>
+            <div>
+                <label>Crash Amounts (%)</label>
+                <input type="text" id="crashPcts" placeholder="e.g. 20, 30">
+                <div class="cap-disclaimer">Percentage loss for crash years.</div>
+            </div>
         </div>
         
         <div class="btn-group">
