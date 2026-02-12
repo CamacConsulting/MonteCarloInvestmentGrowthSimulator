@@ -26,6 +26,7 @@
 
         .crash-section { grid-column: span 3; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding-top: 10px; border-top: 1px solid #ddd; margin-top: 5px; }
         .helper-text { grid-column: span 2; font-size: 10px; color: #666; font-style: italic; margin-bottom: 5px; }
+        .cap-disclaimer { font-size: 9px; color: #666; font-style: italic; margin-top: 4px; line-height: 1.1; }
         
         table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 20px; }
         th { background: #001935; color: white; padding: 8px; }
@@ -55,7 +56,11 @@
         <div><label>Inflation (%)</label><input type="number" id="infl" value="2.5"></div>
         
         <div><label>Years</label><input type="number" id="y" value="25"></div>
-        <div><label>Scenarios</label><input type="number" id="s" value="1000"></div>
+        <div>
+            <label>Scenarios</label>
+            <input type="number" id="s" value="50000" max="100000">
+            <div class="cap-disclaimer">Maximum allowed: 100,000 for performance stability.</div>
+        </div>
         
         <div class="crash-section">
             <div class="helper-text">Separate multiple years/amounts with commas (e.g. Years: 1, 2 | Amounts: 15, 20)</div>
@@ -108,7 +113,10 @@ function runSimulation() {
         const SD = (parseFloat(document.getElementById('sd').value) || 0) / 100;
         const INFL = (parseFloat(document.getElementById('infl').value) || 0) / 100;
         const years = parseInt(document.getElementById('y').value) || 1;
-        const numScenarios = parseInt(document.getElementById('s').value) || 100;
+        
+        // Enforce the 100,000 cap in the logic
+        const rawScenarios = parseInt(document.getElementById('s').value) || 100;
+        const numScenarios = Math.min(rawScenarios, 100000);
         
         const crashYearsArray = document.getElementById('crashYears').value.split(',').map(x => parseInt(x.trim()));
         const crashPctsArray = document.getElementById('crashPcts').value.split(',').map(x => (parseFloat(x.trim()) || 0) / 100);
@@ -153,7 +161,7 @@ function runSimulation() {
             p90.push(results[t][idx90]);
             
             if(t % 5 === 0 || t === years) {
-                tableBody += `<tr><td>${t}</td><td>$${Math.round(p10[t]).toLocaleString()}</td><td>$${Math.round(p50[t]).toLocaleString()}</td><td>$${Math.round(p90[t]).toLocaleString()}</td></tr>`;
+                tableBody += `<tr><td>${t}</td><td>$${Math.round(p10[t] || 0).toLocaleString()}</td><td>$${Math.round(p50[t] || 0).toLocaleString()}</td><td>$${Math.round(p90[t] || 0).toLocaleString()}</td></tr>`;
             }
         }
         document.querySelector("#dataTable tbody").innerHTML = tableBody;
@@ -190,4 +198,3 @@ handleButtonClick();
 </script>
 </body>
 </html>
-
