@@ -23,7 +23,7 @@
         button:disabled { background: #666 !important; cursor: not-allowed; }
         
         .stats-bar { display: grid; grid-template-columns: 1fr; gap: 10px; margin-bottom: 15px; }
-        .stat-card { background: #41797e; color: white; padding: 15px; border-radius: 8px; text-align: center; }
+        .stat-card { background: #41797e; color: white; padding: 15px; border-radius: 8px; text-align: center; transition: background 0.3s ease; }
         .stat-card h2 { margin: 0; font-size: 28px; }
         .stat-card p { margin: 0; font-size: 12px; text-transform: uppercase; opacity: 0.9; letter-spacing: 1px; }
 
@@ -68,31 +68,31 @@
         <div>
             <label>Principal ($)</label>
             <input type="number" id="p" placeholder="0">
-            <div class="cap-disclaimer">Initial investment.</div>
+            <div class="cap-disclaimer">Initial investment amount.</div>
         </div>
         <div>
             <label>Annual Contrib ($)</label>
             <input type="number" id="c" placeholder="0">
-            <div class="cap-disclaimer">Annual addition.</div>
+            <div class="cap-disclaimer">Amount added each year.</div>
         </div>
         <div>
             <label>Savings Goal ($)</label>
             <input type="number" id="goal" placeholder="0">
-            <div class="cap-disclaimer">Target amount.</div>
+            <div class="cap-disclaimer">Target amount to reach.</div>
         </div>
         
-        <div><label>Return (%)</label><input type="number" id="r" placeholder="0"></div>
-        <div><label>Volatility (%)</label><input type="number" id="sd" placeholder="0"></div>
-        <div><label>Inflation (%)</label><input type="number" id="infl" placeholder="0"></div>
+        <div><label>Return (%)</label><input type="number" id="r" placeholder="0"><div class="cap-disclaimer">Avg annual return.</div></div>
+        <div><label>Volatility (%)</label><input type="number" id="sd" placeholder="0"><div class="cap-disclaimer">Std Dev of market.</div></div>
+        <div><label>Inflation (%)</label><input type="number" id="infl" placeholder="0"><div class="cap-disclaimer">Purchasing power adj.</div></div>
         
-        <div><label>Years</label><input type="number" id="y" placeholder="0"></div>
-        <div><label>Scenarios</label><input type="number" id="s" value="50000"></div>
+        <div><label>Years</label><input type="number" id="y" placeholder="0"><div class="cap-disclaimer">Investment horizon.</div></div>
+        <div><label>Scenarios</label><input type="number" id="s" value="50000"><div class="cap-disclaimer">Max: 100,000 paths.</div></div>
         <div></div>
         
         <div class="crash-section">
-            <div class="helper-text">Simulate market drops (comma separated).</div>
-            <div><label>Crash Years</label><input type="text" id="crashYears" placeholder="e.g. 1, 5"></div>
-            <div><label>Crash Amounts (%)</label><input type="text" id="crashPcts" placeholder="e.g. 20, 30"></div>
+            <div class="helper-text">Simulate specific market drops.</div>
+            <div><label>Crash Years</label><input type="text" id="crashYears" placeholder="e.g. 1, 5"><div class="cap-disclaimer">Years of market drop.</div></div>
+            <div><label>Crash Amounts (%)</label><input type="text" id="crashPcts" placeholder="e.g. 20, 30"><div class="cap-disclaimer">% loss for those years.</div></div>
         </div>
         
         <div class="btn-group">
@@ -115,7 +115,7 @@
     </table>
 
     <div class="pdf-disclaimer">
-        <strong>Legal Disclaimer:</strong> This simulation is for educational purposes only and does not constitute financial, investment, or legal advice. Projections are generated via Monte Carlo statistical modeling and are based on historical volatility assumptions. Future market performance is inherently unpredictable. Actual investment results may vary significantly from these projections. Camac Consulting does not guarantee the accuracy or reliability of these results.
+        <strong>Legal Disclaimer:</strong> This simulation is for educational purposes only and does not constitute financial advice. Projections are generated via Monte Carlo modeling based on historical assumptions. Future performance is unpredictable. Actual results may vary significantly.
     </div>
 </div>
  
@@ -125,6 +125,7 @@
  
 <script>
 let myChart;
+let originalButtonText = "Update Simulation";
 const { jsPDF } = window.jspdf;
 
 function rnorm(m, s) { 
@@ -133,7 +134,6 @@ function rnorm(m, s) {
     return m + s * Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
 }
 
-// Logic to find exact contribution needed for 80% success
 function findNeededContrib(P, Goal, R, SD, INFL, years, crashMap) {
     let low = 0, high = (Goal / Math.max(years, 1)) * 3;
     let bestC = high;
@@ -166,10 +166,12 @@ function resetFields() {
 }
 
 function handleButtonClick() {
-    if(!document.getElementById('y').value) return alert("Please enter the number of Years.");
-    document.getElementById('loader').style.display = 'block';
+    if(!document.getElementById('y').value) return alert("Please enter Years.");
     const btn = document.getElementById('runBtn');
-    btn.disabled = true; btn.innerText = "Simulating...";
+    originalButtonText = btn.innerText; // Store current text
+    document.getElementById('loader').style.display = 'block';
+    btn.disabled = true; 
+    btn.innerText = "Simulating...";
     setTimeout(runSimulation, 50);
 }
 
@@ -204,25 +206,24 @@ function runSimulation() {
         const successPct = (successes / numScenarios) * 100;
         document.getElementById('successRate').innerText = successPct.toFixed(1) + "%";
 
-        // Summary Coding Colors
+        // Logic for Conditional Colors
         let statusColor, bgColor, borderColor, assessment;
         if (successPct >= 80) {
-            statusColor = "#2d5a27"; bgColor = "#e8f4e9"; borderColor = "#c8e6c9"; assessment = "<strong>excellent shape</strong> and appears highly resilient.";
+            statusColor = "#2d5a27"; bgColor = "#e8f4e9"; borderColor = "#c8e6c9"; assessment = "<strong>excellent shape</strong>.";
             document.getElementById('mainStatCard').style.background = "#2d5a27";
         } else if (successPct >= 50) {
-            statusColor = "#855600"; bgColor = "#fff3e0"; borderColor = "#ffe0b2"; assessment = "<strong>on the right track</strong>, but sensitive to market timing and volatility.";
+            statusColor = "#855600"; bgColor = "#fff3e0"; borderColor = "#ffe0b2"; assessment = "<strong>on the right track</strong>, but needs help.";
             document.getElementById('mainStatCard').style.background = "#41797e";
         } else {
-            statusColor = "#b71c1c"; bgColor = "#ffebee"; borderColor = "#ffcdd2"; assessment = "<strong>at high risk</strong>. Significant adjustments are likely needed.";
+            statusColor = "#b71c1c"; bgColor = "#ffebee"; borderColor = "#ffcdd2"; assessment = "<strong>at high risk</strong>.";
             document.getElementById('mainStatCard').style.background = "#b71c1c";
         }
 
         let rec = "";
         if(successPct < 80 && Goal > 0) {
             const neededC = findNeededContrib(P, Goal, R, SD, INFL, years, crashMap);
-            const diff = Math.max(0, neededC - C);
-            rec = `<div style="display: inline-block; background: ${bgColor}; color: ${statusColor}; padding: 12px; border-radius: 6px; font-weight: bold; margin-top: 12px; border: 1px solid ${borderColor}; width: 100%; box-sizing: border-box;">
-                    Recommendation: Increase annual savings by $${Math.round(diff).toLocaleString()} to reach an 80% success probability.
+            rec = `<div style="background: ${bgColor}; color: ${statusColor}; padding: 12px; border-radius: 6px; font-weight: bold; margin-top: 12px; border: 1px solid ${borderColor};">
+                    Recommendation: Increase annual savings by $${Math.round(neededC - C).toLocaleString()} to reach 80% success.
                   </div>`;
         }
 
@@ -244,14 +245,9 @@ function runSimulation() {
         document.querySelector("#dataTable tbody").innerHTML = tableBody;
 
         summaryBox.innerHTML = `
-            <div style="margin-bottom: 8px;">Simulation results based on <strong>${numScenarios.toLocaleString()}</strong> market paths:</div>
-            <ul style="margin: 0; padding-left: 20px;">
-                <li><strong>Typical Outcome (Median):</strong> $${Math.round(p50[years]).toLocaleString()}</li>
-                <li><strong>Downside Outcome (10th%):</strong> $${Math.round(p10[years]).toLocaleString()}</li>
-            </ul>
-            <p style="margin-top: 10px; margin-bottom: 5px;">Overall, your plan is ${assessment}</p>
+            <strong>Outcomes:</strong> Median: $${Math.round(p50[years]).toLocaleString()} | Downside: $${Math.round(p10[years]).toLocaleString()}
+            <p style="margin: 10px 0;">Overall, your plan is ${assessment}</p>
             ${rec}
-            ${crashIn ? `<div style="font-size:12px; margin-top:10px; color:#666; font-style:italic;">⚠️ Includes simulated market crashes in year(s) ${crashIn}.</div>` : ""}
         `;
         
         document.getElementById('downloadBtn').style.display = 'block';
@@ -259,47 +255,30 @@ function runSimulation() {
         if(myChart) myChart.destroy();
         myChart = new Chart(document.getElementById('growthChart'), {
             type: 'line', data: { labels: labels, datasets: [
-                { label: 'Median', data: p50, borderColor: '#41797e', borderWidth: 3, fill: false, pointHoverRadius: 6 },
+                { label: 'Median', data: p50, borderColor: '#41797e', borderWidth: 3, fill: false },
                 { label: 'Aggressive', data: p90, borderColor: '#001935', backgroundColor: 'rgba(0, 25, 53, 0.1)', fill: 2, pointRadius: 0 },
                 { label: 'Conservative', data: p10, borderColor: 'rgba(0, 25, 53, 0.2)', borderDash: [5, 5], pointRadius: 0 }
             ]},
-            options: { responsive: true, maintainAspectRatio: false, plugins: { tooltip: { callbacks: { label: (ctx) => `${ctx.dataset.label}: $${Math.round(ctx.parsed.y).toLocaleString()}` } } } }
+            options: { responsive: true, maintainAspectRatio: false }
         });
     } catch(err) { console.error(err); }
     finally {
         document.getElementById('loader').style.display = 'none';
         const btn = document.getElementById('runBtn');
-        btn.disabled = false; btn.innerText = "Update Simulation";
+        btn.disabled = false; 
+        btn.innerText = originalButtonText; // Restore original text
     }
 }
 
 async function downloadPDF() {
     const btn = document.getElementById('downloadBtn');
-    const originalText = btn.innerText;
-    btn.innerText = "Generating PDF...";
-    btn.disabled = true;
-
-    // Show PDF Header and hide buttons for the capture
-    document.getElementById('pdfHeader').style.display = 'block';
-    const controls = document.getElementById('inputControls');
-    const oldDisplay = controls.style.display;
-    
-    const canvas = await html2canvas(document.getElementById('reportContent'), {
-        scale: 2, // Higher quality
-        useCORS: true
-    });
-    
+    btn.innerText = "Generating...";
+    const canvas = await html2canvas(document.getElementById('reportContent'), { scale: 2 });
     const imgData = canvas.toDataURL('image/png');
     const doc = new jsPDF('p', 'mm', 'a4');
-    const imgWidth = 190;
-    const imgHeight = (canvas.height * imgWidth) / canvas.width;
-    
-    doc.addImage(imgData, 'PNG', 10, 10, imgWidth, imgHeight);
-    doc.save(`Camac-Consulting-Growth-Report.pdf`);
-    
-    document.getElementById('pdfHeader').style.display = 'none';
-    btn.innerText = originalText;
-    btn.disabled = false;
+    doc.addImage(imgData, 'PNG', 10, 10, 190, (canvas.height * 190) / canvas.width);
+    doc.save("Growth-Report.pdf");
+    btn.innerText = "Download PDF";
 }
 </script>
 </body>
