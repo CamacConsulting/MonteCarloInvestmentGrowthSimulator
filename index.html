@@ -9,14 +9,14 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     
     <style>
-        body { font-family: -apple-system, sans-serif; background: #ffffff; padding: 10px; color: #333; margin: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: #ffffff; padding: 10px; color: #333; margin: 0; }
         .container { max-width: 800px; margin: auto; padding-bottom: 120px; } 
         .controls { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; background: #f4f7f9; padding: 15px; border-radius: 8px; margin-bottom: 15px; }
         label { display: block; font-weight: bold; font-size: 11px; color: #001935; text-transform: uppercase; }
         input { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; margin-top: 4px; font-size: 14px; }
         
         .btn-group { grid-column: span 3; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-top: 5px; }
-        button { padding: 12px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 14px; }
+        button { padding: 12px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 14px; transition: opacity 0.2s; }
         #runBtn { background: #001935; color: white; }
         #resetBtn { background: #ddd; color: #333; }
         #downloadBtn { background: #41797e; color: white; display: none; }
@@ -24,13 +24,12 @@
         
         .stats-bar { display: grid; grid-template-columns: 1fr; gap: 10px; margin-bottom: 15px; }
         .stat-card { background: #41797e; color: white; padding: 15px; border-radius: 8px; text-align: center; }
-        .stat-card h2 { margin: 0; font-size: 24px; }
-        .stat-card p { margin: 0; font-size: 12px; text-transform: uppercase; opacity: 0.9; }
+        .stat-card h2 { margin: 0; font-size: 28px; }
+        .stat-card p { margin: 0; font-size: 12px; text-transform: uppercase; opacity: 0.9; letter-spacing: 1px; }
 
-        #resultSummary { background: #fdfdfd; padding: 15px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; line-height: 1.5; color: #444; display: none; margin-top: 5px; }
-        .recommendation-tag { display: inline-block; background: #e8f4f1; color: #2d5a5e; padding: 2px 8px; border-radius: 4px; font-weight: bold; margin-top: 8px; border: 1px solid #cde3de; }
+        #resultSummary { background: #fdfdfd; padding: 15px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; line-height: 1.6; color: #444; display: none; margin-top: 5px; }
  
-        .chart-container { height: 350px; margin-bottom: 20px; position: relative; background: #fff; border: 1px solid #eee; }
+        .chart-container { height: 350px; margin-bottom: 20px; position: relative; background: #fff; border: 1px solid #eee; border-radius: 8px; }
         #loader { display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 10; }
         .spinner { width: 40px; height: 40px; border: 4px solid #f3f3f3; border-top: 4px solid #41797e; border-radius: 50%; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
@@ -40,10 +39,10 @@
         .cap-disclaimer { font-size: 9px; color: #666; font-style: italic; margin-top: 4px; line-height: 1.2; }
         
         table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 20px; }
-        th { background: #001935; color: white; padding: 8px; }
-        td { border: 1px solid #eee; padding: 8px; text-align: center; }
+        th { background: #001935; color: white; padding: 10px; text-align: center; }
+        td { border: 1px solid #eee; padding: 10px; text-align: center; }
         
-        .pdf-disclaimer { font-size: 10px; color: #888; margin-top: 20px; line-height: 1.4; border-top: 1px solid #eee; padding-top: 10px; }
+        .pdf-disclaimer { font-size: 10px; color: #888; margin-top: 25px; line-height: 1.5; border-top: 1px solid #eee; padding-top: 15px; }
 
         .footer-nav { position: fixed; bottom: 0; left: 0; width: 100%; background: #fff; padding: 15px 0; border-top: 1px solid #ddd; text-align: center; z-index: 1000; }
         .footer-nav a { color: #ffffff; background-color: #41797e; font-weight: bold; text-decoration: none; font-size: 14px; display: inline-block; padding: 10px 25px; border-radius: 4px; }
@@ -52,15 +51,20 @@
 <body>
  
 <div class="container" id="reportContent">
+    <div id="pdfHeader" style="display:none; margin-bottom: 20px;">
+        <h1 style="color:#001935; margin:0;">Investment Growth Report</h1>
+        <p style="color:#666; font-size:12px;">Provided by Camac Consulting</p>
+    </div>
+
     <div class="stats-bar">
-        <div class="stat-card">
+        <div class="stat-card" id="mainStatCard">
             <p>Probability of Hitting Goal</p>
             <h2 id="successRate">--%</h2>
         </div>
         <div id="resultSummary"></div>
     </div>
  
-    <div class="controls">
+    <div class="controls" id="inputControls">
         <div>
             <label>Principal ($)</label>
             <input type="number" id="p" placeholder="0">
@@ -92,9 +96,9 @@
         </div>
         
         <div class="btn-group">
-            <button id="runBtn" onclick="handleButtonClick()">Update</button>
+            <button id="runBtn" onclick="handleButtonClick()">Update Simulation</button>
             <button id="resetBtn" onclick="resetFields()">Reset</button>
-            <button id="downloadBtn" onclick="downloadPDF()">PDF Report</button>
+            <button id="downloadBtn" onclick="downloadPDF()">Download PDF</button>
         </div>
     </div>
  
@@ -111,7 +115,7 @@
     </table>
 
     <div class="pdf-disclaimer">
-        <strong>Disclaimer:</strong> This simulation is for educational purposes only and does not constitute financial advice. Projections are based on historical volatility and Monte Carlo statistical modeling. Future market performance is unpredictable, and actual results may vary significantly.
+        <strong>Legal Disclaimer:</strong> This simulation is for educational purposes only and does not constitute financial, investment, or legal advice. Projections are generated via Monte Carlo statistical modeling and are based on historical volatility assumptions. Future market performance is inherently unpredictable. Actual investment results may vary significantly from these projections. Camac Consulting does not guarantee the accuracy or reliability of these results.
     </div>
 </div>
  
@@ -129,13 +133,15 @@ function rnorm(m, s) {
     return m + s * Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
 }
 
+// Logic to find exact contribution needed for 80% success
 function findNeededContrib(P, Goal, R, SD, INFL, years, crashMap) {
-    let low = 0, high = Goal / Math.max(years, 1) * 2;
+    let low = 0, high = (Goal / Math.max(years, 1)) * 3;
     let bestC = high;
     for(let i=0; i<15; i++) {
         let mid = (low + high) / 2;
         let successes = 0;
-        for(let s=0; s<1500; s++) {
+        const testScenarios = 1500; 
+        for(let s=0; s<testScenarios; s++) {
             let bal = P;
             for(let t=1; t<=years; t++) {
                 let currRet = (crashMap[t] !== undefined) ? -crashMap[t] : rnorm(R, SD);
@@ -143,7 +149,7 @@ function findNeededContrib(P, Goal, R, SD, INFL, years, crashMap) {
             }
             if((bal / Math.pow(1 + INFL, years)) >= Goal) successes++;
         }
-        if(successes / 1500 >= 0.8) { bestC = mid; high = mid; } else { low = mid; }
+        if(successes / testScenarios >= 0.8) { bestC = mid; high = mid; } else { low = mid; }
     }
     return bestC;
 }
@@ -154,12 +160,13 @@ function resetFields() {
     document.getElementById('successRate').innerText = '--%';
     document.getElementById('resultSummary').style.display = 'none';
     document.getElementById('downloadBtn').style.display = 'none';
+    document.getElementById('mainStatCard').style.background = '#41797e';
     if(myChart) myChart.destroy();
     document.querySelector("#dataTable tbody").innerHTML = "";
 }
 
 function handleButtonClick() {
-    if(!document.getElementById('y').value) return alert("Please enter Years.");
+    if(!document.getElementById('y').value) return alert("Please enter the number of Years.");
     document.getElementById('loader').style.display = 'block';
     const btn = document.getElementById('runBtn');
     btn.disabled = true; btn.innerText = "Simulating...";
@@ -197,8 +204,34 @@ function runSimulation() {
         const successPct = (successes / numScenarios) * 100;
         document.getElementById('successRate').innerText = successPct.toFixed(1) + "%";
 
-        let labels = [], p10 = [], p50 = [], p90 = [], tableBody = "";
+        // Summary Coding Colors
+        let statusColor, bgColor, borderColor, assessment;
+        if (successPct >= 80) {
+            statusColor = "#2d5a27"; bgColor = "#e8f4e9"; borderColor = "#c8e6c9"; assessment = "<strong>excellent shape</strong> and appears highly resilient.";
+            document.getElementById('mainStatCard').style.background = "#2d5a27";
+        } else if (successPct >= 50) {
+            statusColor = "#855600"; bgColor = "#fff3e0"; borderColor = "#ffe0b2"; assessment = "<strong>on the right track</strong>, but sensitive to market timing and volatility.";
+            document.getElementById('mainStatCard').style.background = "#41797e";
+        } else {
+            statusColor = "#b71c1c"; bgColor = "#ffebee"; borderColor = "#ffcdd2"; assessment = "<strong>at high risk</strong>. Significant adjustments are likely needed.";
+            document.getElementById('mainStatCard').style.background = "#b71c1c";
+        }
+
+        let rec = "";
+        if(successPct < 80 && Goal > 0) {
+            const neededC = findNeededContrib(P, Goal, R, SD, INFL, years, crashMap);
+            const diff = Math.max(0, neededC - C);
+            rec = `<div style="display: inline-block; background: ${bgColor}; color: ${statusColor}; padding: 12px; border-radius: 6px; font-weight: bold; margin-top: 12px; border: 1px solid ${borderColor}; width: 100%; box-sizing: border-box;">
+                    Recommendation: Increase annual savings by $${Math.round(diff).toLocaleString()} to reach an 80% success probability.
+                  </div>`;
+        }
+
+        const summaryBox = document.getElementById('resultSummary');
+        summaryBox.style.display = "block";
+        summaryBox.style.borderLeft = `6px solid ${statusColor}`;
+
         const idx10 = Math.floor(numScenarios * 0.1), idx50 = Math.floor(numScenarios * 0.5), idx90 = Math.floor(numScenarios * 0.9);
+        let labels = [], p10 = [], p50 = [], p90 = [], tableBody = "";
 
         for(let t=0; t<=years; t++) {
             results[t].sort((a,b) => a-b);
@@ -210,19 +243,15 @@ function runSimulation() {
         }
         document.querySelector("#dataTable tbody").innerHTML = tableBody;
 
-        const summaryBox = document.getElementById('resultSummary');
-        let rec = "";
-        if(successPct < 80 && Goal > 0) {
-            const neededC = findNeededContrib(P, Goal, R, SD, INFL, years, crashMap);
-            rec = `<div class="recommendation-tag">Action: Increase annual savings by $${Math.round(neededC - C).toLocaleString()} to reach 80% probability.</div>`;
-        }
-
-        summaryBox.style.display = "block";
         summaryBox.innerHTML = `
-            <strong>Outcomes:</strong> Median: $${Math.round(p50[years]).toLocaleString()} | Downside: $${Math.round(p10[years]).toLocaleString()}
-            <br>Overall, your plan is ${successPct >= 80 ? "excellent." : (successPct >= 50 ? "on the right track but needs buffering." : "at risk.")}
+            <div style="margin-bottom: 8px;">Simulation results based on <strong>${numScenarios.toLocaleString()}</strong> market paths:</div>
+            <ul style="margin: 0; padding-left: 20px;">
+                <li><strong>Typical Outcome (Median):</strong> $${Math.round(p50[years]).toLocaleString()}</li>
+                <li><strong>Downside Outcome (10th%):</strong> $${Math.round(p10[years]).toLocaleString()}</li>
+            </ul>
+            <p style="margin-top: 10px; margin-bottom: 5px;">Overall, your plan is ${assessment}</p>
             ${rec}
-            ${crashIn ? `<div style="font-size:12px; margin-top:5px; color:#888;">⚠️ Includes market drops in year(s) ${crashIn}.</div>` : ""}
+            ${crashIn ? `<div style="font-size:12px; margin-top:10px; color:#666; font-style:italic;">⚠️ Includes simulated market crashes in year(s) ${crashIn}.</div>` : ""}
         `;
         
         document.getElementById('downloadBtn').style.display = 'block';
@@ -230,7 +259,7 @@ function runSimulation() {
         if(myChart) myChart.destroy();
         myChart = new Chart(document.getElementById('growthChart'), {
             type: 'line', data: { labels: labels, datasets: [
-                { label: 'Median', data: p50, borderColor: '#41797e', borderWidth: 3, fill: false },
+                { label: 'Median', data: p50, borderColor: '#41797e', borderWidth: 3, fill: false, pointHoverRadius: 6 },
                 { label: 'Aggressive', data: p90, borderColor: '#001935', backgroundColor: 'rgba(0, 25, 53, 0.1)', fill: 2, pointRadius: 0 },
                 { label: 'Conservative', data: p10, borderColor: 'rgba(0, 25, 53, 0.2)', borderDash: [5, 5], pointRadius: 0 }
             ]},
@@ -240,25 +269,37 @@ function runSimulation() {
     finally {
         document.getElementById('loader').style.display = 'none';
         const btn = document.getElementById('runBtn');
-        btn.disabled = false; btn.innerText = "Update";
+        btn.disabled = false; btn.innerText = "Update Simulation";
     }
 }
 
 async function downloadPDF() {
     const btn = document.getElementById('downloadBtn');
-    btn.innerText = "Generating...";
-    const doc = new jsPDF('p', 'mm', 'a4');
-    
-    doc.setFont("helvetica", "bold"); doc.setFontSize(18); doc.text("Investment Growth Report", 15, 20);
-    doc.setFontSize(10); doc.setFont("helvetica", "normal"); doc.text(`Camac Consulting - ${new Date().toLocaleDateString()}`, 15, 26);
+    const originalText = btn.innerText;
+    btn.innerText = "Generating PDF...";
+    btn.disabled = true;
 
-    const canvas = await html2canvas(document.getElementById('reportContent'));
-    const imgData = canvas.toDataURL('image/png');
-    const imgWidth = 180; const imgHeight = (canvas.height * imgWidth) / canvas.width;
+    // Show PDF Header and hide buttons for the capture
+    document.getElementById('pdfHeader').style.display = 'block';
+    const controls = document.getElementById('inputControls');
+    const oldDisplay = controls.style.display;
     
-    doc.addImage(imgData, 'PNG', 15, 35, imgWidth, imgHeight);
-    doc.save("Investment-Growth-Report.pdf");
-    btn.innerText = "PDF Report";
+    const canvas = await html2canvas(document.getElementById('reportContent'), {
+        scale: 2, // Higher quality
+        useCORS: true
+    });
+    
+    const imgData = canvas.toDataURL('image/png');
+    const doc = new jsPDF('p', 'mm', 'a4');
+    const imgWidth = 190;
+    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+    
+    doc.addImage(imgData, 'PNG', 10, 10, imgWidth, imgHeight);
+    doc.save(`Camac-Consulting-Growth-Report.pdf`);
+    
+    document.getElementById('pdfHeader').style.display = 'none';
+    btn.innerText = originalText;
+    btn.disabled = false;
 }
 </script>
 </body>
