@@ -10,7 +10,7 @@
     
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: #ffffff; padding: 10px; color: #333; margin: 0; }
-        .container { max-width: 800px; margin: auto; padding-bottom: 120px; } 
+        .container { max-width: 800px; margin: auto; padding-bottom: 120px; background: white; } 
         .controls { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; background: #f4f7f9; padding: 15px; border-radius: 8px; margin-bottom: 15px; }
         label { display: block; font-weight: bold; font-size: 11px; color: #001935; text-transform: uppercase; }
         input { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; margin-top: 4px; font-size: 14px; }
@@ -38,7 +38,7 @@
         .helper-text { grid-column: span 2; font-size: 10px; color: #666; font-style: italic; margin-bottom: 5px; }
         .cap-disclaimer { font-size: 9px; color: #666; font-style: italic; margin-top: 4px; line-height: 1.2; }
         
-        table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 20px; }
+        table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 20px; background: white; }
         th { background: #001935; color: white; padding: 10px; text-align: center; }
         td { border: 1px solid #eee; padding: 10px; text-align: center; }
         
@@ -49,7 +49,7 @@
     </style>
 </head>
 <body>
- 
+
 <div class="container" id="reportContent">
     <div class="stats-bar">
         <div class="stat-card" id="mainStatCard">
@@ -123,14 +123,14 @@ let myChart;
 let originalButtonText = "Update Simulation";
 const { jsPDF } = window.jspdf;
 
-// Box-Muller transform for normal distribution
+// Math: Normal distribution
 function rnorm(m, s) { 
     let u=0, v=0;
     while(u===0) u=Math.random(); while(v===0) v=Math.random();
     return m + s * Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
 }
 
-// Binary search to find contribution needed for 80% success
+// Logic: Find contribution for 80% success
 function findNeededContrib(P, Goal, R, SD, INFL, years, crashMap) {
     let low = 0, high = (Goal / Math.max(years, 1)) * 5;
     let bestC = high;
@@ -196,7 +196,6 @@ function runSimulation() {
             for(let t=1; t<=years; t++) {
                 let currRet = (crashMap[t] !== undefined) ? -crashMap[t] : rnorm(R, SD);
                 bal = (bal * (1 + currRet)) + C;
-                // Inflation adjusted balance for tracking
                 results[t].push(bal / Math.pow(1 + INFL, t));
             }
             if(results[years][s] >= Goal) successes++;
@@ -259,64 +258,96 @@ function runSimulation() {
                 { label: 'Conservative', data: p10, borderColor: 'rgba(0, 25, 53, 0.2)', borderDash: [5, 5], pointRadius: 0 }
             ]},
             options: { 
-                responsive: true, 
-                maintainAspectRatio: false,
+                responsive: true, maintainAspectRatio: false,
                 interaction: { mode: 'index', intersect: false },
                 plugins: {
                     tooltip: { callbacks: { label: (ctx) => `${ctx.dataset.label}: $${Math.round(ctx.parsed.y).toLocaleString()}` } }
                 },
-                scales: { 
-                    y: { ticks: { callback: v => '$' + v.toLocaleString() } } 
-                }
-            },
-            plugins: [{
-                id: 'crosshair',
-                afterDraw: (chart) => {
-                    if (chart.tooltip?._active?.length) {
-                        const activePoint = chart.tooltip._active[0];
-                        const { ctx } = chart;
-                        const { x, y } = activePoint.element;
-                        const topY = chart.scales.y.top;
-                        const bottomY = chart.scales.y.bottom;
-                        const leftX = chart.scales.x.left;
-                        const rightX = chart.scales.x.right;
-                        ctx.save();
-                        ctx.beginPath();
-                        ctx.setLineDash([5, 5]);
-                        ctx.moveTo(x, topY); ctx.lineTo(x, bottomY);
-                        ctx.moveTo(leftX, y); ctx.lineTo(rightX, y);
-                        ctx.lineWidth = 1;
-                        ctx.strokeStyle = 'rgba(0, 25, 53, 0.4)';
-                        ctx.stroke();
-                        ctx.restore();
-                    }
-                }
-            }]
+                scales: { y: { ticks: { callback: v => '$' + v.toLocaleString() } } }
+            }
         });
     } catch(err) { console.error(err); }
     finally {
         document.getElementById('loader').style.display = 'none';
         const btn = document.getElementById('runBtn');
-        btn.disabled = false; 
-        btn.innerText = originalButtonText;
+        btn.disabled = false; btn.innerText = originalButtonText;
     }
 }
 
+// PDF GENERATION LOGIC
 async function downloadPDF() {
     const btn = document.getElementById('downloadBtn');
+    const controls = document.getElementById('inputControls');
+    const footer = document.querySelector('.footer-nav');
+    
     btn.innerText = "Generating PDF...";
     btn.disabled = true;
+
+    // Hide controls for the report
+    controls.style.display = 'none';
+    if(footer) footer.style.display = 'none';
+
     try {
-        const canvas = await html2canvas(document.getElementById('reportContent'), { scale: 2 });
+        const element = document.getElementById('reportContent');
+        const canvas = await html2canvas(element, { 
+            scale: 2,
+            useCORS: true,
+            windowHeight: element.scrollHeight 
+        });
+
         const imgData = canvas.toDataURL('image/png');
-        const doc = new jsPDF('p', 'mm', 'a4');
-        const imgWidth = 190;
+        const pdf = new jsPDF('p', 'mm', 'a4');
+        
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = pdf.internal.pageSize.getHeight();
+        const margin = 15;
+        const topHeaderHeight = 25; 
+        
+        const imgWidth = pdfWidth - (margin * 2);
         const imgHeight = (canvas.height * imgWidth) / canvas.width;
-        doc.addImage(imgData, 'PNG', 10, 10, imgWidth, imgHeight);
-        doc.save("Growth-Report.pdf");
+        
+        let heightLeft = imgHeight;
+        let position = topHeaderHeight; 
+
+        const addHeader = (doc) => {
+            doc.setFontSize(14);
+            doc.setTextColor(0, 25, 53); 
+            doc.setFont("helvetica", "bold");
+            doc.text("CAMAC CONSULTING", margin, 12);
+            
+            doc.setFontSize(9);
+            doc.setFont("helvetica", "normal");
+            doc.setTextColor(100);
+            const now = new Date().toLocaleString();
+            doc.text(`Generated on: ${now}`, pdfWidth - margin, 12, { align: "right" });
+            
+            doc.setDrawColor(65, 121, 126); 
+            doc.setLineWidth(0.5);
+            doc.line(margin, 15, pdfWidth - margin, 15);
+        };
+
+        // Page 1
+        addHeader(pdf);
+        pdf.addImage(imgData, 'PNG', margin, position, imgWidth, imgHeight);
+        heightLeft -= (pdfHeight - topHeaderHeight - margin);
+
+        // Additional Pages for Table/Disclaimer
+        while (heightLeft > 0) {
+            pdf.addPage();
+            addHeader(pdf);
+            position = heightLeft - imgHeight + topHeaderHeight;
+            pdf.addImage(imgData, 'PNG', margin, position, imgWidth, imgHeight);
+            heightLeft -= (pdfHeight - margin);
+        }
+
+        pdf.save(`Camac-Growth-Report-${new Date().toISOString().slice(0,10)}.pdf`);
     } catch (e) { alert("PDF Error: " + e.message); }
-    btn.innerText = "Download PDF";
-    btn.disabled = false;
+    finally {
+        controls.style.display = 'grid';
+        if(footer) footer.style.display = 'block';
+        btn.innerText = "Download PDF";
+        btn.disabled = false;
+    }
 }
 </script>
 </body>
