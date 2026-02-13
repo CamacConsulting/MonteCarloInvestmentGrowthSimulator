@@ -3,352 +3,235 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Advanced Monte Carlo Simulator | Camac Consulting</title>
+    <title>Investment Growth Simulator | Camac Consulting</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: #ffffff; padding: 10px; color: #333; margin: 0; }
-        .container { max-width: 800px; margin: auto; padding-bottom: 120px; background: white; } 
-        .controls { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; background: #f4f7f9; padding: 15px; border-radius: 8px; margin-bottom: 15px; }
-        label { display: block; font-weight: bold; font-size: 11px; color: #001935; text-transform: uppercase; }
-        input { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; margin-top: 4px; font-size: 14px; }
+        :root { --primary: #001935; --accent: #41797e; --bg: #f4f7f9; }
+        body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background: #fff; color: #333; margin: 0; padding: 20px; }
+        .report-wrapper { max-width: 900px; margin: auto; padding: 20px; border: 1px solid #eee; }
         
-        .btn-group { grid-column: span 3; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-top: 5px; }
-        button { padding: 12px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 14px; transition: opacity 0.2s; }
-        #runBtn { background: #001935; color: white; }
-        #resetBtn { background: #ddd; color: #333; }
-        #downloadBtn { background: #41797e; color: white; display: none; }
-        button:disabled { background: #666 !important; cursor: not-allowed; }
-        
-        .stats-bar { display: grid; grid-template-columns: 1fr; gap: 10px; margin-bottom: 15px; }
-        .stat-card { background: #41797e; color: white; padding: 15px; border-radius: 8px; text-align: center; transition: background 0.3s ease; }
-        .stat-card h2 { margin: 0; font-size: 28px; }
-        .stat-card p { margin: 0; font-size: 12px; text-transform: uppercase; opacity: 0.9; letter-spacing: 1px; }
+        /* Header Styling */
+        .pdf-only-header { display: none; border-bottom: 2px solid var(--accent); padding-bottom: 10px; margin-bottom: 20px; }
+        .pdf-only-header h1 { color: var(--primary); margin: 0; font-size: 22px; }
+        .pdf-only-header p { margin: 5px 0 0; font-size: 12px; color: #666; }
 
-        #resultSummary { background: #fdfdfd; padding: 15px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; line-height: 1.6; color: #444; display: none; margin-top: 5px; }
- 
-        .chart-container { height: 350px; margin-bottom: 20px; position: relative; background: #fff; border: 1px solid #eee; border-radius: 8px; }
-        #loader { display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 10; }
-        .spinner { width: 40px; height: 40px; border: 4px solid #f3f3f3; border-top: 4px solid #41797e; border-radius: 50%; animation: spin 1s linear infinite; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
- 
-        .crash-section { grid-column: span 3; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding-top: 10px; border-top: 1px solid #ddd; margin-top: 5px; }
-        .helper-text { grid-column: span 2; font-size: 10px; color: #666; font-style: italic; margin-bottom: 5px; }
-        .cap-disclaimer { font-size: 9px; color: #666; font-style: italic; margin-top: 4px; line-height: 1.2; }
+        /* Stats Branding */
+        .stat-card { background: var(--accent); color: white; padding: 20px; border-radius: 8px; text-align: center; margin-bottom: 20px; }
+        .stat-card h2 { margin: 0; font-size: 36px; }
         
-        table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 20px; background: white; }
-        th { background: #001935; color: white; padding: 10px; text-align: center; }
-        td { border: 1px solid #eee; padding: 10px; text-align: center; }
+        /* Input Grid */
+        .controls { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; background: var(--bg); padding: 20px; border-radius: 8px; margin-bottom: 20px; }
+        .input-group { display: flex; flex-direction: column; }
+        label { font-size: 11px; font-weight: bold; color: var(--primary); text-transform: uppercase; margin-bottom: 5px; }
+        input { padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; }
         
-        .pdf-disclaimer { font-size: 10px; color: #888; margin-top: 25px; line-height: 1.5; border-top: 1px solid #eee; padding-top: 15px; }
+        /* The "Value Label" Fix: These show in PDF when inputs are hidden */
+        .pdf-value { display: none; font-size: 15px; font-weight: bold; color: #000; padding: 5px 0; }
 
-        .footer-nav { position: fixed; bottom: 0; left: 0; width: 100%; background: #fff; padding: 15px 0; border-top: 1px solid #ddd; text-align: center; z-index: 1000; }
-        .footer-nav a { color: #ffffff; background-color: #41797e; font-weight: bold; text-decoration: none; font-size: 14px; display: inline-block; padding: 10px 25px; border-radius: 4px; }
+        .btn-group { grid-column: span 3; display: flex; gap: 10px; margin-top: 10px; }
+        button { flex: 1; padding: 12px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
+        #runBtn { background: var(--primary); color: white; }
+        #downloadBtn { background: var(--accent); color: white; }
+
+        /* Chart & Table */
+        .chart-container { height: 400px; margin-bottom: 30px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th { background: var(--primary); color: white; padding: 12px; font-size: 13px; }
+        td { border: 1px solid #eee; padding: 10px; text-align: center; font-size: 13px; }
+
+        /* Print/PDF Overrides */
+        @media print {
+            .no-print { display: none !important; }
+            .pdf-only-header { display: block !important; }
+            .pdf-value { display: block !important; }
+            input { display: none !important; }
+            .report-wrapper { border: none; }
+        }
     </style>
 </head>
 <body>
 
-<div class="container" id="reportContent">
-    <div class="stats-bar">
-        <div class="stat-card" id="mainStatCard">
-            <p>Probability of Hitting Goal</p>
-            <h2 id="successRate">--%</h2>
+<div class="report-wrapper" id="printableArea">
+    <div class="pdf-only-header" id="pdfHeader">
+        <div style="display: flex; justify-content: space-between; align-items: baseline;">
+            <h1>CAMAC CONSULTING</h1>
+            <p id="pdfTimestamp"></p>
         </div>
-        <div id="resultSummary"></div>
+        <p>Investment Strategy & Growth Simulation Report</p>
     </div>
- 
-    <div class="controls" id="inputControls">
-        <div>
+
+    <div class="stat-card">
+        <p style="text-transform: uppercase; font-size: 12px; letter-spacing: 1px;">Success Probability</p>
+        <h2 id="successRate">--%</h2>
+    </div>
+
+    <div class="controls">
+        <div class="input-group">
             <label>Principal ($)</label>
-            <input type="number" id="p" placeholder="0">
-            <div class="cap-disclaimer">Initial investment amount.</div>
+            <input type="number" id="p" value="10000">
+            <div class="pdf-value" id="val_p"></div>
         </div>
-        <div>
-            <label>Annual Contrib ($)</label>
-            <input type="number" id="c" placeholder="0">
-            <div class="cap-disclaimer">Amount added each year.</div>
+        <div class="input-group">
+            <label>Annual Contribution</label>
+            <input type="number" id="c" value="12000">
+            <div class="pdf-value" id="val_c"></div>
         </div>
-        <div>
-            <label>Savings Goal ($)</label>
-            <input type="number" id="goal" placeholder="0">
-            <div class="cap-disclaimer">Target amount to reach.</div>
+        <div class="input-group">
+            <label>Savings Goal</label>
+            <input type="number" id="goal" value="500000">
+            <div class="pdf-value" id="val_goal"></div>
         </div>
-        
-        <div><label>Return (%)</label><input type="number" id="r" placeholder="0"><div class="cap-disclaimer">Avg annual return.</div></div>
-        <div><label>Volatility (%)</label><input type="number" id="sd" placeholder="0"><div class="cap-disclaimer">Std Dev of market.</div></div>
-        <div><label>Inflation (%)</label><input type="number" id="infl" placeholder="0"><div class="cap-disclaimer">Purchasing power adj.</div></div>
-        
-        <div><label>Years</label><input type="number" id="y" placeholder="0"><div class="cap-disclaimer">Investment horizon.</div></div>
-        <div><label>Scenarios</label><input type="number" id="s" value="50000"><div class="cap-disclaimer">Max: 100,000 paths.</div></div>
-        <div></div>
-        
-        <div class="crash-section">
-            <div class="helper-text">Simulate specific market drops.</div>
-            <div><label>Crash Years</label><input type="text" id="crashYears" placeholder="e.g. 1, 5"><div class="cap-disclaimer">Years of market drop.</div></div>
-            <div><label>Crash Amounts (%)</label><input type="text" id="crashPcts" placeholder="e.g. 20, 30"><div class="cap-disclaimer">% loss for those years.</div></div>
+        <div class="input-group">
+            <label>Avg Return (%)</label>
+            <input type="number" id="r" value="7">
+            <div class="pdf-value" id="val_r"></div>
         </div>
-        
-        <div class="btn-group">
-            <button id="runBtn" onclick="handleButtonClick()">Update Simulation</button>
-            <button id="resetBtn" onclick="resetFields()">Reset</button>
-            <button id="downloadBtn" onclick="downloadPDF()">Download PDF</button>
+        <div class="input-group">
+            <label>Volatility (%)</label>
+            <input type="number" id="sd" value="15">
+            <div class="pdf-value" id="val_sd"></div>
+        </div>
+        <div class="input-group">
+            <label>Years</label>
+            <input type="number" id="y" value="20">
+            <div class="pdf-value" id="val_y"></div>
+        </div>
+
+        <div class="btn-group no-print">
+            <button id="runBtn" onclick="runSimulation()">Run Simulation</button>
+            <button id="downloadBtn" onclick="downloadPDF()">Download PDF Report</button>
         </div>
     </div>
- 
+
     <div class="chart-container">
-        <div id="loader"><div class="spinner"></div></div>
         <canvas id="growthChart"></canvas>
     </div>
- 
+
     <table id="dataTable">
         <thead>
-            <tr><th>Year</th><th>Conservative (10th)</th><th>Median (50th)</th><th>Aggressive (90th)</th></tr>
+            <tr>
+                <th>Year</th>
+                <th>Conservative (10th)</th>
+                <th>Median (50th)</th>
+                <th>Aggressive (90th)</th>
+            </tr>
         </thead>
         <tbody></tbody>
     </table>
 
-    <div class="pdf-disclaimer">
-        <strong>Legal Disclaimer:</strong> This simulation is for educational purposes only and does not constitute financial advice. Projections are generated via Monte Carlo modeling based on historical assumptions. Future performance is unpredictable. Actual results may vary significantly.
-    </div>
+    <p style="font-size: 10px; color: #999; margin-top: 30px; border-top: 1px solid #eee; padding-top: 10px;">
+        Disclaimer: This report is a mathematical simulation. Past performance is not indicative of future results.
+    </p>
 </div>
- 
-<div class="footer-nav">
-    <a href="https://camacconsulting.github.io/MonteCarloInvestmentGrowthSimulator/" target="_blank">VIEW FULL SCREEN ↗</a>
-</div>
- 
+
 <script>
 let myChart;
-let originalButtonText = "Update Simulation";
 const { jsPDF } = window.jspdf;
 
-// Math: Normal distribution
-function rnorm(m, s) { 
+function rnorm(m, s) {
     let u=0, v=0;
     while(u===0) u=Math.random(); while(v===0) v=Math.random();
     return m + s * Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
 }
 
-// Logic: Find contribution for 80% success
-function findNeededContrib(P, Goal, R, SD, INFL, years, crashMap) {
-    let low = 0, high = (Goal / Math.max(years, 1)) * 5;
-    let bestC = high;
-    for(let i=0; i<15; i++) {
-        let mid = (low + high) / 2;
-        let successes = 0;
-        const testScenarios = 1000; 
-        for(let s=0; s<testScenarios; s++) {
-            let bal = P;
-            for(let t=1; t<=years; t++) {
-                let currRet = (crashMap[t] !== undefined) ? -crashMap[t] : rnorm(R, SD);
-                bal = (bal * (1 + currRet)) + mid;
-            }
-            if((bal / Math.pow(1 + INFL, years)) >= Goal) successes++;
-        }
-        if(successes / testScenarios >= 0.8) { bestC = mid; high = mid; } else { low = mid; }
-    }
-    return bestC;
-}
-
-function resetFields() {
-    ['p', 'c', 'goal', 'r', 'sd', 'infl', 'y', 'crashYears', 'crashPcts'].forEach(id => document.getElementById(id).value = '');
-    document.getElementById('s').value = '50000';
-    document.getElementById('successRate').innerText = '--%';
-    document.getElementById('resultSummary').style.display = 'none';
-    document.getElementById('downloadBtn').style.display = 'none';
-    document.getElementById('mainStatCard').style.background = '#41797e';
-    if(myChart) myChart.destroy();
-    document.querySelector("#dataTable tbody").innerHTML = "";
-}
-
-function handleButtonClick() {
-    const yVal = document.getElementById('y').value;
-    if(!yVal || yVal <= 0) return alert("Please enter the number of Years.");
-    const btn = document.getElementById('runBtn');
-    originalButtonText = btn.innerText; 
-    document.getElementById('loader').style.display = 'block';
-    btn.disabled = true; 
-    btn.innerText = "Simulating...";
-    setTimeout(runSimulation, 50);
-}
-
 function runSimulation() {
-    try {
-        const P = parseFloat(document.getElementById('p').value) || 0;
-        const C = parseFloat(document.getElementById('c').value) || 0;
-        const Goal = parseFloat(document.getElementById('goal').value) || 0;
-        const R = (parseFloat(document.getElementById('r').value) || 0) / 100;
-        const SD = (parseFloat(document.getElementById('sd').value) || 0) / 100;
-        const INFL = (parseFloat(document.getElementById('infl').value) || 0) / 100;
-        const years = parseInt(document.getElementById('y').value) || 0;
-        const numScenarios = Math.min(parseInt(document.getElementById('s').value) || 100, 100000);
-        
-        const crashIn = document.getElementById('crashYears').value.trim();
-        const crashPctsArray = document.getElementById('crashPcts').value.split(',').map(x => (parseFloat(x.trim()) || 0) / 100);
-        let crashMap = {};
-        crashIn.split(',').forEach((yr, i) => { if(!isNaN(parseInt(yr))) crashMap[parseInt(yr)] = crashPctsArray[i] || 0; });
-        
-        let results = Array.from({length: years + 1}, () => []);
-        let successes = 0;
-        for(let s=0; s<numScenarios; s++) {
-            let bal = P; results[0].push(bal);
-            for(let t=1; t<=years; t++) {
-                let currRet = (crashMap[t] !== undefined) ? -crashMap[t] : rnorm(R, SD);
-                bal = (bal * (1 + currRet)) + C;
-                results[t].push(bal / Math.pow(1 + INFL, t));
-            }
-            if(results[years][s] >= Goal) successes++;
+    const P = parseFloat(document.getElementById('p').value) || 0;
+    const C = parseFloat(document.getElementById('c').value) || 0;
+    const Goal = parseFloat(document.getElementById('goal').value) || 0;
+    const R = (parseFloat(document.getElementById('r').value) || 0) / 100;
+    const SD = (parseFloat(document.getElementById('sd').value) || 0) / 100;
+    const years = parseInt(document.getElementById('y').value) || 0;
+    const sims = 10000;
+
+    let results = Array.from({length: years + 1}, () => []);
+    let successes = 0;
+
+    for(let i=0; i<sims; i++) {
+        let bal = P;
+        results[0].push(bal);
+        for(let t=1; t<=years; t++) {
+            bal = (bal * (1 + rnorm(R, SD))) + C;
+            results[t].push(bal);
         }
-
-        const successPct = (successes / numScenarios) * 100;
-        document.getElementById('successRate').innerText = successPct.toFixed(1) + "%";
-
-        let statusColor, bgColor, borderColor, assessment;
-        if (successPct >= 80) {
-            statusColor = "#2d5a27"; bgColor = "#e8f4e9"; borderColor = "#c8e6c9"; assessment = "<strong>excellent shape</strong>.";
-            document.getElementById('mainStatCard').style.background = "#2d5a27";
-        } else if (successPct >= 50) {
-            statusColor = "#855600"; bgColor = "#fff3e0"; borderColor = "#ffe0b2"; assessment = "<strong>on the right track</strong>, but needs attention.";
-            document.getElementById('mainStatCard').style.background = "#41797e";
-        } else {
-            statusColor = "#b71c1c"; bgColor = "#ffebee"; borderColor = "#ffcdd2"; assessment = "<strong>at high risk</strong>.";
-            document.getElementById('mainStatCard').style.background = "#b71c1c";
-        }
-
-        let rec = "";
-        if(successPct < 80 && Goal > 0) {
-            const neededC = findNeededContrib(P, Goal, R, SD, INFL, years, crashMap);
-            const diff = Math.max(0, neededC - C);
-            rec = `<div style="background: ${bgColor}; color: ${statusColor}; padding: 12px; border-radius: 6px; font-weight: bold; margin-top: 12px; border: 1px solid ${borderColor};">
-                    Recommendation: Increase annual savings by $${Math.round(diff).toLocaleString()} to reach 80% probability.
-                  </div>`;
-        }
-
-        const summaryBox = document.getElementById('resultSummary');
-        summaryBox.style.display = "block";
-        summaryBox.style.borderLeft = `6px solid ${statusColor}`;
-
-        const idx10 = Math.floor(numScenarios * 0.1), idx50 = Math.floor(numScenarios * 0.5), idx90 = Math.floor(numScenarios * 0.9);
-        let labels = [], p10 = [], p50 = [], p90 = [], tableBody = "";
-
-        for(let t=0; t<=years; t++) {
-            results[t].sort((a,b) => a-b);
-            labels.push("Year " + t);
-            p10.push(results[t][idx10] || 0); p50.push(results[t][idx50] || 0); p90.push(results[t][idx90] || 0);
-            if(t % 5 === 0 || t === years) {
-                tableBody += `<tr><td>${t}</td><td>$${Math.round(p10[t]).toLocaleString()}</td><td>$${Math.round(p50[t]).toLocaleString()}</td><td>$${Math.round(p90[t]).toLocaleString()}</td></tr>`;
-            }
-        }
-        document.querySelector("#dataTable tbody").innerHTML = tableBody;
-
-        summaryBox.innerHTML = `
-            <strong>Outcomes:</strong> Typical: $${Math.round(p50[years]).toLocaleString()} | Downside: $${Math.round(p10[years]).toLocaleString()}
-            <p style="margin: 10px 0;">Overall, your plan is ${assessment}</p>
-            ${rec}
-        `;
-        
-        document.getElementById('downloadBtn').style.display = 'block';
-
-        if(myChart) myChart.destroy();
-        myChart = new Chart(document.getElementById('growthChart'), {
-            type: 'line', data: { labels: labels, datasets: [
-                { label: 'Median', data: p50, borderColor: '#41797e', borderWidth: 3, fill: false, pointHoverRadius: 6 },
-                { label: 'Aggressive', data: p90, borderColor: '#001935', backgroundColor: 'rgba(0, 25, 53, 0.1)', fill: 2, pointRadius: 0 },
-                { label: 'Conservative', data: p10, borderColor: 'rgba(0, 25, 53, 0.2)', borderDash: [5, 5], pointRadius: 0 }
-            ]},
-            options: { 
-                responsive: true, maintainAspectRatio: false,
-                interaction: { mode: 'index', intersect: false },
-                plugins: {
-                    tooltip: { callbacks: { label: (ctx) => `${ctx.dataset.label}: $${Math.round(ctx.parsed.y).toLocaleString()}` } }
-                },
-                scales: { y: { ticks: { callback: v => '$' + v.toLocaleString() } } }
-            }
-        });
-    } catch(err) { console.error(err); }
-    finally {
-        document.getElementById('loader').style.display = 'none';
-        const btn = document.getElementById('runBtn');
-        btn.disabled = false; btn.innerText = originalButtonText;
+        if(bal >= Goal) successes++;
     }
+
+    document.getElementById('successRate').innerText = ((successes/sims)*100).toFixed(1) + "%";
+
+    let labels = [], p10=[], p50=[], p90=[], tableHTML="";
+    for(let t=0; t<=years; t++) {
+        results[t].sort((a,b) => a-b);
+        labels.push("Year " + t);
+        let v10 = results[t][Math.floor(sims*0.1)];
+        let v50 = results[t][Math.floor(sims*0.5)];
+        let v90 = results[t][Math.floor(sims*0.9)];
+        p10.push(v10); p50.push(v50); p90.push(v90);
+        
+        if(t % 5 === 0 || t === years) {
+            tableHTML += `<tr><td>${t}</td><td>$${Math.round(v10).toLocaleString()}</td><td>$${Math.round(v50).toLocaleString()}</td><td>$${Math.round(v90).toLocaleString()}</td></tr>`;
+        }
+    }
+    document.querySelector("#dataTable tbody").innerHTML = tableHTML;
+
+    if(myChart) myChart.destroy();
+    myChart = new Chart(document.getElementById('growthChart'), {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [
+                { label: 'Median', data: p50, borderColor: '#41797e', fill: false },
+                { label: '90th Percentile', data: p90, borderColor: '#001935', backgroundColor: 'rgba(0,25,53,0.05)', fill: true }
+            ]
+        },
+        options: { responsive: true, maintainAspectRatio: false }
+    });
 }
 
-// PDF GENERATION LOGIC
 async function downloadPDF() {
-    const btn = document.getElementById('downloadBtn');
-    const controls = document.getElementById('inputControls');
-    const footer = document.querySelector('.footer-nav');
+    const doc = new jsPDF('p', 'pt', 'a4');
+    const element = document.getElementById('printableArea');
     
-    btn.innerText = "Generating PDF...";
-    btn.disabled = true;
+    // 1. Sync Input values to Text Labels (so they appear in PDF)
+    const inputs = ['p', 'c', 'goal', 'r', 'sd', 'y'];
+    inputs.forEach(id => {
+        const val = document.getElementById(id).value;
+        document.getElementById('val_' + id).innerText = (id === 'r' || id === 'sd') ? val + '%' : '$' + Number(val).toLocaleString();
+    });
 
-    // Hide controls for the report
-    controls.style.display = 'none';
-    if(footer) footer.style.display = 'none';
+    // 2. Set Timestamp
+    document.getElementById('pdfTimestamp').innerText = new Date().toLocaleString();
 
-    try {
-        const element = document.getElementById('reportContent');
-        const canvas = await html2canvas(element, { 
-            scale: 2,
-            useCORS: true,
-            windowHeight: element.scrollHeight 
-        });
+    // 3. Temporarily hide inputs/buttons and show labels
+    document.querySelectorAll('input').forEach(i => i.style.display = 'none');
+    document.querySelectorAll('.pdf-value').forEach(v => v.style.display = 'block');
+    document.getElementById('pdfHeader').style.display = 'block';
+    document.querySelector('.no-print').style.display = 'none';
 
-        const imgData = canvas.toDataURL('image/png');
-        const pdf = new jsPDF('p', 'mm', 'a4');
-        
-        const pdfWidth = pdf.internal.pageSize.getWidth();
-        const pdfHeight = pdf.internal.pageSize.getHeight();
-        const margin = 15;
-        const topHeaderHeight = 25; 
-        
-        const imgWidth = pdfWidth - (margin * 2);
-        const imgHeight = (canvas.height * imgWidth) / canvas.width;
-        
-        let heightLeft = imgHeight;
-        let position = topHeaderHeight; 
-
-        const addHeader = (doc) => {
-            doc.setFontSize(14);
-            doc.setTextColor(0, 25, 53); 
-            doc.setFont("helvetica", "bold");
-            doc.text("CAMAC CONSULTING", margin, 12);
-            
-            doc.setFontSize(9);
-            doc.setFont("helvetica", "normal");
-            doc.setTextColor(100);
-            const now = new Date().toLocaleString();
-            doc.text(`Generated on: ${now}`, pdfWidth - margin, 12, { align: "right" });
-            
-            doc.setDrawColor(65, 121, 126); 
-            doc.setLineWidth(0.5);
-            doc.line(margin, 15, pdfWidth - margin, 15);
-        };
-
-        // Page 1
-        addHeader(pdf);
-        pdf.addImage(imgData, 'PNG', margin, position, imgWidth, imgHeight);
-        heightLeft -= (pdfHeight - topHeaderHeight - margin);
-
-        // Additional Pages for Table/Disclaimer
-        while (heightLeft > 0) {
-            pdf.addPage();
-            addHeader(pdf);
-            position = heightLeft - imgHeight + topHeaderHeight;
-            pdf.addImage(imgData, 'PNG', margin, position, imgWidth, imgHeight);
-            heightLeft -= (pdfHeight - margin);
-        }
-
-        pdf.save(`Camac-Growth-Report-${new Date().toISOString().slice(0,10)}.pdf`);
-    } catch (e) { alert("PDF Error: " + e.message); }
-    finally {
-        controls.style.display = 'grid';
-        if(footer) footer.style.display = 'block';
-        btn.innerText = "Download PDF";
-        btn.disabled = false;
-    }
+    // 4. Generate High-Quality Multi-page PDF
+    await doc.html(element, {
+        callback: function (doc) {
+            doc.save('Camac-Consulting-Report.pdf');
+            // Restore UI
+            document.querySelectorAll('input').forEach(i => i.style.display = 'block');
+            document.querySelectorAll('.pdf-value').forEach(v => v.style.display = 'none');
+            document.getElementById('pdfHeader').style.display = 'none';
+            document.querySelector('.no-print').style.display = 'flex';
+        },
+        margin: [40, 40, 40, 40],
+        autoPaging: 'text',
+        x: 0,
+        y: 0,
+        width: 520, // Target width in points to fit A4
+        windowWidth: 900 // Ensure it captures the desktop layout scale
+    });
 }
+
+// Run once on load
+runSimulation();
 </script>
+
 </body>
 </html>
