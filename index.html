@@ -123,19 +123,21 @@ let myChart;
 let originalButtonText = "Update Simulation";
 const { jsPDF } = window.jspdf;
 
+// Box-Muller transform for normal distribution
 function rnorm(m, s) { 
     let u=0, v=0;
     while(u===0) u=Math.random(); while(v===0) v=Math.random();
     return m + s * Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
 }
 
+// Binary search to find contribution needed for 80% success
 function findNeededContrib(P, Goal, R, SD, INFL, years, crashMap) {
-    let low = 0, high = (Goal / Math.max(years, 1)) * 3;
+    let low = 0, high = (Goal / Math.max(years, 1)) * 5;
     let bestC = high;
     for(let i=0; i<15; i++) {
         let mid = (low + high) / 2;
         let successes = 0;
-        const testScenarios = 1500; 
+        const testScenarios = 1000; 
         for(let s=0; s<testScenarios; s++) {
             let bal = P;
             for(let t=1; t<=years; t++) {
@@ -161,7 +163,8 @@ function resetFields() {
 }
 
 function handleButtonClick() {
-    if(!document.getElementById('y').value) return alert("Please enter Years.");
+    const yVal = document.getElementById('y').value;
+    if(!yVal || yVal <= 0) return alert("Please enter the number of Years.");
     const btn = document.getElementById('runBtn');
     originalButtonText = btn.innerText; 
     document.getElementById('loader').style.display = 'block';
@@ -193,6 +196,7 @@ function runSimulation() {
             for(let t=1; t<=years; t++) {
                 let currRet = (crashMap[t] !== undefined) ? -crashMap[t] : rnorm(R, SD);
                 bal = (bal * (1 + currRet)) + C;
+                // Inflation adjusted balance for tracking
                 results[t].push(bal / Math.pow(1 + INFL, t));
             }
             if(results[years][s] >= Goal) successes++;
@@ -206,7 +210,7 @@ function runSimulation() {
             statusColor = "#2d5a27"; bgColor = "#e8f4e9"; borderColor = "#c8e6c9"; assessment = "<strong>excellent shape</strong>.";
             document.getElementById('mainStatCard').style.background = "#2d5a27";
         } else if (successPct >= 50) {
-            statusColor = "#855600"; bgColor = "#fff3e0"; borderColor = "#ffe0b2"; assessment = "<strong>on the right track</strong>, but needs help.";
+            statusColor = "#855600"; bgColor = "#fff3e0"; borderColor = "#ffe0b2"; assessment = "<strong>on the right track</strong>, but needs attention.";
             document.getElementById('mainStatCard').style.background = "#41797e";
         } else {
             statusColor = "#b71c1c"; bgColor = "#ffebee"; borderColor = "#ffcdd2"; assessment = "<strong>at high risk</strong>.";
@@ -216,8 +220,9 @@ function runSimulation() {
         let rec = "";
         if(successPct < 80 && Goal > 0) {
             const neededC = findNeededContrib(P, Goal, R, SD, INFL, years, crashMap);
+            const diff = Math.max(0, neededC - C);
             rec = `<div style="background: ${bgColor}; color: ${statusColor}; padding: 12px; border-radius: 6px; font-weight: bold; margin-top: 12px; border: 1px solid ${borderColor};">
-                    Recommendation: Increase annual savings by $${Math.round(neededC - C).toLocaleString()} to reach 80% success.
+                    Recommendation: Increase annual savings by $${Math.round(diff).toLocaleString()} to reach 80% probability.
                   </div>`;
         }
 
@@ -239,7 +244,7 @@ function runSimulation() {
         document.querySelector("#dataTable tbody").innerHTML = tableBody;
 
         summaryBox.innerHTML = `
-            <strong>Outcomes:</strong> Median: $${Math.round(p50[years]).toLocaleString()} | Downside: $${Math.round(p10[years]).toLocaleString()}
+            <strong>Outcomes:</strong> Typical: $${Math.round(p50[years]).toLocaleString()} | Downside: $${Math.round(p10[years]).toLocaleString()}
             <p style="margin: 10px 0;">Overall, your plan is ${assessment}</p>
             ${rec}
         `;
@@ -258,9 +263,7 @@ function runSimulation() {
                 maintainAspectRatio: false,
                 interaction: { mode: 'index', intersect: false },
                 plugins: {
-                    tooltip: {
-                        callbacks: { label: (ctx) => `${ctx.dataset.label}: $${Math.round(ctx.parsed.y).toLocaleString()}` }
-                    }
+                    tooltip: { callbacks: { label: (ctx) => `${ctx.dataset.label}: $${Math.round(ctx.parsed.y).toLocaleString()}` } }
                 },
                 scales: { 
                     y: { ticks: { callback: v => '$' + v.toLocaleString() } } 
@@ -277,14 +280,11 @@ function runSimulation() {
                         const bottomY = chart.scales.y.bottom;
                         const leftX = chart.scales.x.left;
                         const rightX = chart.scales.x.right;
- 
                         ctx.save();
                         ctx.beginPath();
                         ctx.setLineDash([5, 5]);
-                        ctx.moveTo(x, topY);
-                        ctx.lineTo(x, bottomY);
-                        ctx.moveTo(leftX, y);
-                        ctx.lineTo(rightX, y);
+                        ctx.moveTo(x, topY); ctx.lineTo(x, bottomY);
+                        ctx.moveTo(leftX, y); ctx.lineTo(rightX, y);
                         ctx.lineWidth = 1;
                         ctx.strokeStyle = 'rgba(0, 25, 53, 0.4)';
                         ctx.stroke();
@@ -304,13 +304,19 @@ function runSimulation() {
 
 async function downloadPDF() {
     const btn = document.getElementById('downloadBtn');
-    btn.innerText = "Generating...";
-    const canvas = await html2canvas(document.getElementById('reportContent'), { scale: 2 });
-    const imgData = canvas.toDataURL('image/png');
-    const doc = new jsPDF('p', 'mm', 'a4');
-    doc.addImage(imgData, 'PNG', 10, 10, 190, (canvas.height * 190) / canvas.width);
-    doc.save("Growth-Report.pdf");
+    btn.innerText = "Generating PDF...";
+    btn.disabled = true;
+    try {
+        const canvas = await html2canvas(document.getElementById('reportContent'), { scale: 2 });
+        const imgData = canvas.toDataURL('image/png');
+        const doc = new jsPDF('p', 'mm', 'a4');
+        const imgWidth = 190;
+        const imgHeight = (canvas.height * imgWidth) / canvas.width;
+        doc.addImage(imgData, 'PNG', 10, 10, imgWidth, imgHeight);
+        doc.save("Growth-Report.pdf");
+    } catch (e) { alert("PDF Error: " + e.message); }
     btn.innerText = "Download PDF";
+    btn.disabled = false;
 }
 </script>
 </body>
