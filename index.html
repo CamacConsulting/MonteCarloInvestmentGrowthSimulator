@@ -3,106 +3,102 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Investment Growth Simulator | Camac Consulting</title>
+    <title>Advanced Monte Carlo Simulator | Camac Consulting</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     
     <style>
-        :root { --primary: #001935; --accent: #41797e; --bg: #f4f7f9; }
-        body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background: #fff; color: #333; margin: 0; padding: 20px; }
-        .report-wrapper { max-width: 900px; margin: auto; padding: 20px; border: 1px solid #eee; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: #ffffff; padding: 10px; color: #333; margin: 0; }
+        .container { max-width: 800px; margin: auto; padding-bottom: 120px; } 
         
-        /* Header Styling */
-        .pdf-only-header { display: none; border-bottom: 2px solid var(--accent); padding-bottom: 10px; margin-bottom: 20px; }
-        .pdf-only-header h1 { color: var(--primary); margin: 0; font-size: 22px; }
-        .pdf-only-header p { margin: 5px 0 0; font-size: 12px; color: #666; }
+        /* Branding Header - Only shows in PDF */
+        #pdfBranding { display: none; border-bottom: 2px solid #41797e; margin-bottom: 20px; padding-bottom: 10px; }
+        #pdfBranding h1 { color: #001935; margin: 0; font-size: 24px; }
+        #pdfBranding p { font-size: 12px; color: #666; margin: 5px 0 0; }
 
-        /* Stats Branding */
-        .stat-card { background: var(--accent); color: white; padding: 20px; border-radius: 8px; text-align: center; margin-bottom: 20px; }
-        .stat-card h2 { margin: 0; font-size: 36px; }
+        .controls { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; background: #f4f7f9; padding: 15px; border-radius: 8px; margin-bottom: 15px; }
+        label { display: block; font-weight: bold; font-size: 11px; color: #001935; text-transform: uppercase; }
+        input { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; margin-top: 4px; font-size: 14px; }
         
-        /* Input Grid */
-        .controls { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; background: var(--bg); padding: 20px; border-radius: 8px; margin-bottom: 20px; }
-        .input-group { display: flex; flex-direction: column; }
-        label { font-size: 11px; font-weight: bold; color: var(--primary); text-transform: uppercase; margin-bottom: 5px; }
-        input { padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; }
+        /* The Fix for missing numbers: Text labels that show only in PDF */
+        .pdf-val { display: none; font-size: 16px; font-weight: bold; padding: 8px 0; color: #000; }
+
+        .btn-group { grid-column: span 3; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-top: 5px; }
+        button { padding: 12px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 14px; transition: opacity 0.2s; }
+        #runBtn { background: #001935; color: white; }
+        #resetBtn { background: #ddd; color: #333; }
+        #downloadBtn { background: #41797e; color: white; display: none; }
         
-        /* The "Value Label" Fix: These show in PDF when inputs are hidden */
-        .pdf-value { display: none; font-size: 15px; font-weight: bold; color: #000; padding: 5px 0; }
+        .stats-bar { display: grid; grid-template-columns: 1fr; gap: 10px; margin-bottom: 15px; }
+        .stat-card { background: #41797e; color: white; padding: 15px; border-radius: 8px; text-align: center; }
+        .stat-card h2 { margin: 0; font-size: 28px; }
+        .stat-card p { margin: 0; font-size: 12px; text-transform: uppercase; }
 
-        .btn-group { grid-column: span 3; display: flex; gap: 10px; margin-top: 10px; }
-        button { flex: 1; padding: 12px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
-        #runBtn { background: var(--primary); color: white; }
-        #downloadBtn { background: var(--accent); color: white; }
-
-        /* Chart & Table */
-        .chart-container { height: 400px; margin-bottom: 30px; }
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        th { background: var(--primary); color: white; padding: 12px; font-size: 13px; }
-        td { border: 1px solid #eee; padding: 10px; text-align: center; font-size: 13px; }
-
-        /* Print/PDF Overrides */
-        @media print {
-            .no-print { display: none !important; }
-            .pdf-only-header { display: block !important; }
-            .pdf-value { display: block !important; }
-            input { display: none !important; }
-            .report-wrapper { border: none; }
-        }
+        #resultSummary { background: #fdfdfd; padding: 15px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; line-height: 1.6; display: none; margin-top: 5px; }
+        .chart-container { height: 350px; margin-bottom: 20px; border: 1px solid #eee; border-radius: 8px; position: relative; }
+        
+        table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 20px; }
+        th { background: #001935; color: white; padding: 10px; }
+        td { border: 1px solid #eee; padding: 10px; text-align: center; }
+        
+        .pdf-disclaimer { font-size: 10px; color: #888; margin-top: 25px; border-top: 1px solid #eee; padding-top: 15px; }
+        .footer-nav { position: fixed; bottom: 0; left: 0; width: 100%; background: #fff; padding: 15px 0; border-top: 1px solid #ddd; text-align: center; }
+        .footer-nav a { color: #fff; background: #41797e; padding: 10px 20px; text-decoration: none; border-radius: 4px; font-weight: bold; }
     </style>
 </head>
 <body>
 
-<div class="report-wrapper" id="printableArea">
-    <div class="pdf-only-header" id="pdfHeader">
-        <div style="display: flex; justify-content: space-between; align-items: baseline;">
-            <h1>CAMAC CONSULTING</h1>
-            <p id="pdfTimestamp"></p>
+<div class="container" id="reportContent">
+    <div id="pdfBranding">
+        <h1>CAMAC CONSULTING</h1>
+        <p id="pdfDate"></p>
+    </div>
+
+    <div class="stats-bar">
+        <div class="stat-card" id="mainStatCard">
+            <p>Probability of Hitting Goal</p>
+            <h2 id="successRate">--%</h2>
         </div>
-        <p>Investment Strategy & Growth Simulation Report</p>
+        <div id="resultSummary"></div>
     </div>
 
-    <div class="stat-card">
-        <p style="text-transform: uppercase; font-size: 12px; letter-spacing: 1px;">Success Probability</p>
-        <h2 id="successRate">--%</h2>
-    </div>
-
-    <div class="controls">
-        <div class="input-group">
+    <div class="controls" id="inputSection">
+        <div>
             <label>Principal ($)</label>
             <input type="number" id="p" value="10000">
-            <div class="pdf-value" id="val_p"></div>
+            <div class="pdf-val" id="lbl_p"></div>
         </div>
-        <div class="input-group">
-            <label>Annual Contribution</label>
-            <input type="number" id="c" value="12000">
-            <div class="pdf-value" id="val_c"></div>
+        <div>
+            <label>Annual Contrib ($)</label>
+            <input type="number" id="c" value="5000">
+            <div class="pdf-val" id="lbl_c"></div>
         </div>
-        <div class="input-group">
-            <label>Savings Goal</label>
-            <input type="number" id="goal" value="500000">
-            <div class="pdf-value" id="val_goal"></div>
+        <div>
+            <label>Savings Goal ($)</label>
+            <input type="number" id="goal" value="250000">
+            <div class="pdf-val" id="lbl_goal"></div>
         </div>
-        <div class="input-group">
-            <label>Avg Return (%)</label>
+        <div>
+            <label>Return (%)</label>
             <input type="number" id="r" value="7">
-            <div class="pdf-value" id="val_r"></div>
+            <div class="pdf-val" id="lbl_r"></div>
         </div>
-        <div class="input-group">
+        <div>
             <label>Volatility (%)</label>
-            <input type="number" id="sd" value="15">
-            <div class="pdf-value" id="val_sd"></div>
+            <input type="number" id="sd" value="12">
+            <div class="pdf-val" id="lbl_sd"></div>
         </div>
-        <div class="input-group">
+        <div>
             <label>Years</label>
             <input type="number" id="y" value="20">
-            <div class="pdf-value" id="val_y"></div>
+            <div class="pdf-val" id="lbl_y"></div>
         </div>
-
-        <div class="btn-group no-print">
-            <button id="runBtn" onclick="runSimulation()">Run Simulation</button>
-            <button id="downloadBtn" onclick="downloadPDF()">Download PDF Report</button>
+        
+        <div class="btn-group" id="actionButtons">
+            <button id="runBtn" onclick="runSimulation()">Update Simulation</button>
+            <button id="resetBtn" onclick="location.reload()">Reset</button>
+            <button id="downloadBtn" onclick="downloadPDF()">Download PDF</button>
         </div>
     </div>
 
@@ -112,24 +108,22 @@
 
     <table id="dataTable">
         <thead>
-            <tr>
-                <th>Year</th>
-                <th>Conservative (10th)</th>
-                <th>Median (50th)</th>
-                <th>Aggressive (90th)</th>
-            </tr>
+            <tr><th>Year</th><th>Conservative</th><th>Median</th><th>Aggressive</th></tr>
         </thead>
         <tbody></tbody>
     </table>
 
-    <p style="font-size: 10px; color: #999; margin-top: 30px; border-top: 1px solid #eee; padding-top: 10px;">
-        Disclaimer: This report is a mathematical simulation. Past performance is not indicative of future results.
-    </p>
+    <div class="pdf-disclaimer">
+        <strong>Legal Disclaimer:</strong> Educational simulation only. Not financial advice. Projections are based on Monte Carlo modeling.
+    </div>
+</div>
+
+<div class="footer-nav" id="siteFooter">
+    <a href="#">VIEW FULL SCREEN ↗</a>
 </div>
 
 <script>
 let myChart;
-const { jsPDF } = window.jspdf;
 
 function rnorm(m, s) {
     let u=0, v=0;
@@ -143,15 +137,12 @@ function runSimulation() {
     const Goal = parseFloat(document.getElementById('goal').value) || 0;
     const R = (parseFloat(document.getElementById('r').value) || 0) / 100;
     const SD = (parseFloat(document.getElementById('sd').value) || 0) / 100;
-    const years = parseInt(document.getElementById('y').value) || 0;
-    const sims = 10000;
-
+    const years = parseInt(document.getElementById('y').value) || 1;
+    
     let results = Array.from({length: years + 1}, () => []);
     let successes = 0;
-
-    for(let i=0; i<sims; i++) {
-        let bal = P;
-        results[0].push(bal);
+    for(let s=0; s<5000; s++) {
+        let bal = P; results[0].push(bal);
         for(let t=1; t<=years; t++) {
             bal = (bal * (1 + rnorm(R, SD))) + C;
             results[t].push(bal);
@@ -159,79 +150,87 @@ function runSimulation() {
         if(bal >= Goal) successes++;
     }
 
-    document.getElementById('successRate').innerText = ((successes/sims)*100).toFixed(1) + "%";
+    document.getElementById('successRate').innerText = ((successes/5000)*100).toFixed(1) + "%";
+    document.getElementById('downloadBtn').style.display = 'block';
 
-    let labels = [], p10=[], p50=[], p90=[], tableHTML="";
+    let labels = [], p10 = [], p50 = [], p90 = [], tableBody = "";
     for(let t=0; t<=years; t++) {
         results[t].sort((a,b) => a-b);
         labels.push("Year " + t);
-        let v10 = results[t][Math.floor(sims*0.1)];
-        let v50 = results[t][Math.floor(sims*0.5)];
-        let v90 = results[t][Math.floor(sims*0.9)];
-        p10.push(v10); p50.push(v50); p90.push(v90);
-        
+        p10.push(results[t][500]); p50.push(results[t][2500]); p90.push(results[t][4500]);
         if(t % 5 === 0 || t === years) {
-            tableHTML += `<tr><td>${t}</td><td>$${Math.round(v10).toLocaleString()}</td><td>$${Math.round(v50).toLocaleString()}</td><td>$${Math.round(v90).toLocaleString()}</td></tr>`;
+            tableBody += `<tr><td>${t}</td><td>$${Math.round(p10[t]).toLocaleString()}</td><td>$${Math.round(p50[t]).toLocaleString()}</td><td>$${Math.round(p90[t]).toLocaleString()}</td></tr>`;
         }
     }
-    document.querySelector("#dataTable tbody").innerHTML = tableHTML;
+    document.querySelector("#dataTable tbody").innerHTML = tableBody;
 
     if(myChart) myChart.destroy();
     myChart = new Chart(document.getElementById('growthChart'), {
         type: 'line',
         data: {
             labels: labels,
-            datasets: [
-                { label: 'Median', data: p50, borderColor: '#41797e', fill: false },
-                { label: '90th Percentile', data: p90, borderColor: '#001935', backgroundColor: 'rgba(0,25,53,0.05)', fill: true }
-            ]
+            datasets: [{ label: 'Median', data: p50, borderColor: '#41797e', fill: false }]
         },
         options: { responsive: true, maintainAspectRatio: false }
     });
 }
 
 async function downloadPDF() {
-    const doc = new jsPDF('p', 'pt', 'a4');
-    const element = document.getElementById('printableArea');
-    
-    // 1. Sync Input values to Text Labels (so they appear in PDF)
-    const inputs = ['p', 'c', 'goal', 'r', 'sd', 'y'];
-    inputs.forEach(id => {
+    const { jsPDF } = window.jspdf;
+    const btn = document.getElementById('downloadBtn');
+    btn.innerText = "Processing...";
+
+    // 1. Prepare PDF Content: Show labels, Hide inputs
+    const ids = ['p', 'c', 'goal', 'r', 'sd', 'y'];
+    ids.forEach(id => {
         const val = document.getElementById(id).value;
-        document.getElementById('val_' + id).innerText = (id === 'r' || id === 'sd') ? val + '%' : '$' + Number(val).toLocaleString();
+        document.getElementById('lbl_' + id).innerText = (id==='r'||id==='sd') ? val+'%' : '$'+Number(val).toLocaleString();
+        document.getElementById(id).style.display = 'none';
+        document.getElementById('lbl_' + id).style.display = 'block';
     });
 
-    // 2. Set Timestamp
-    document.getElementById('pdfTimestamp').innerText = new Date().toLocaleString();
+    document.getElementById('pdfBranding').style.display = 'block';
+    document.getElementById('pdfDate').innerText = "Generated: " + new Date().toLocaleString();
+    document.getElementById('actionButtons').style.display = 'none';
+    document.getElementById('siteFooter').style.display = 'none';
 
-    // 3. Temporarily hide inputs/buttons and show labels
-    document.querySelectorAll('input').forEach(i => i.style.display = 'none');
-    document.querySelectorAll('.pdf-value').forEach(v => v.style.display = 'block');
-    document.getElementById('pdfHeader').style.display = 'block';
-    document.querySelector('.no-print').style.display = 'none';
+    // 2. Capture
+    const element = document.getElementById('reportContent');
+    const canvas = await html2canvas(element, { scale: 2, useCORS: true });
+    const imgData = canvas.toDataURL('image/png');
+    
+    // 3. Multi-page Logic
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    const pdfWidth = pdf.internal.pageSize.getWidth();
+    const pdfHeight = pdf.internal.pageSize.getHeight();
+    const imgWidth = pdfWidth - 20;
+    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+    
+    let heightLeft = imgHeight;
+    let position = 10;
 
-    // 4. Generate High-Quality Multi-page PDF
-    await doc.html(element, {
-        callback: function (doc) {
-            doc.save('Camac-Consulting-Report.pdf');
-            // Restore UI
-            document.querySelectorAll('input').forEach(i => i.style.display = 'block');
-            document.querySelectorAll('.pdf-value').forEach(v => v.style.display = 'none');
-            document.getElementById('pdfHeader').style.display = 'none';
-            document.querySelector('.no-print').style.display = 'flex';
-        },
-        margin: [40, 40, 40, 40],
-        autoPaging: 'text',
-        x: 0,
-        y: 0,
-        width: 520, // Target width in points to fit A4
-        windowWidth: 900 // Ensure it captures the desktop layout scale
+    pdf.addImage(imgData, 'PNG', 10, position, imgWidth, imgHeight);
+    heightLeft -= (pdfHeight - 20);
+
+    while (heightLeft > 0) {
+        position = heightLeft - imgHeight + 10;
+        pdf.addPage();
+        pdf.addImage(imgData, 'PNG', 10, position, imgWidth, imgHeight);
+        heightLeft -= pdfHeight;
+    }
+
+    pdf.save("Camac-Consulting-Report.pdf");
+
+    // 4. Restore UI
+    ids.forEach(id => {
+        document.getElementById(id).style.display = 'block';
+        document.getElementById('lbl_' + id).style.display = 'none';
     });
+    document.getElementById('pdfBranding').style.display = 'none';
+    document.getElementById('actionButtons').style.display = 'grid';
+    document.getElementById('siteFooter').style.display = 'block';
+    btn.innerText = "Download PDF";
 }
-
-// Run once on load
-runSimulation();
 </script>
-
 </body>
 </html>
