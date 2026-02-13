@@ -28,12 +28,12 @@
         .stat-card p { margin: 0; font-size: 12px; text-transform: uppercase; opacity: 0.9; letter-spacing: 1px; }
 
         #resultSummary { background: #fdfdfd; padding: 15px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; line-height: 1.6; color: #444; display: none; margin-top: 5px; }
- 
+
         .chart-container { height: 350px; margin-bottom: 20px; position: relative; background: #fff; border: 1px solid #eee; border-radius: 8px; }
         #loader { display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 10; }
         .spinner { width: 40px; height: 40px; border: 4px solid #f3f3f3; border-top: 4px solid #41797e; border-radius: 50%; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
- 
+
         .crash-section { grid-column: span 3; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding-top: 10px; border-top: 1px solid #ddd; margin-top: 5px; }
         .helper-text { grid-column: span 2; font-size: 10px; color: #666; font-style: italic; margin-bottom: 5px; }
         .cap-disclaimer { font-size: 9px; color: #666; font-style: italic; margin-top: 4px; line-height: 1.2; }
@@ -49,7 +49,7 @@
     </style>
 </head>
 <body>
- 
+
 <div class="container" id="reportContent">
     <div class="stats-bar">
         <div class="stat-card" id="mainStatCard">
@@ -58,7 +58,7 @@
         </div>
         <div id="resultSummary"></div>
     </div>
- 
+
     <div class="controls" id="inputControls">
         <div>
             <label>Principal ($)</label>
@@ -96,12 +96,12 @@
             <button id="downloadBtn" onclick="downloadPDF()">Download PDF</button>
         </div>
     </div>
- 
+
     <div class="chart-container">
         <div id="loader"><div class="spinner"></div></div>
         <canvas id="growthChart"></canvas>
     </div>
- 
+
     <table id="dataTable">
         <thead>
             <tr><th>Year</th><th>Conservative (10th)</th><th>Median (50th)</th><th>Aggressive (90th)</th></tr>
@@ -113,20 +113,20 @@
         <strong>Legal Disclaimer:</strong> This simulation is for educational purposes only and does not constitute financial advice. Projections are generated via Monte Carlo modeling based on historical assumptions. Future performance is unpredictable. Actual results may vary significantly.
     </div>
 </div>
- 
-<div class="footer-nav">
+
+<div class="footer-nav" id="bottomNav">
     <a href="https://camacconsulting.github.io/MonteCarloInvestmentGrowthSimulator/" target="_blank">VIEW FULL SCREEN ↗</a>
 </div>
- 
+
 <script>
 let myChart;
 let originalButtonText = "Update Simulation";
-const { jsPDF } = window.jspdf;
 
-// Box-Muller transform for normal distribution
+// Helper for Normal Distribution
 function rnorm(m, s) { 
     let u=0, v=0;
-    while(u===0) u=Math.random(); while(v===0) v=Math.random();
+    while(u===0) u=Math.random(); 
+    while(v===0) v=Math.random();
     return m + s * Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
 }
 
@@ -196,7 +196,6 @@ function runSimulation() {
             for(let t=1; t<=years; t++) {
                 let currRet = (crashMap[t] !== undefined) ? -crashMap[t] : rnorm(R, SD);
                 bal = (bal * (1 + currRet)) + C;
-                // Inflation adjusted balance for tracking
                 results[t].push(bal / Math.pow(1 + INFL, t));
             }
             if(results[years][s] >= Goal) successes++;
@@ -223,7 +222,7 @@ function runSimulation() {
             const diff = Math.max(0, neededC - C);
             rec = `<div style="background: ${bgColor}; color: ${statusColor}; padding: 12px; border-radius: 6px; font-weight: bold; margin-top: 12px; border: 1px solid ${borderColor};">
                     Recommendation: Increase annual savings by $${Math.round(diff).toLocaleString()} to reach 80% probability.
-                  </div>`;
+                 </div>`;
         }
 
         const summaryBox = document.getElementById('resultSummary');
@@ -244,7 +243,7 @@ function runSimulation() {
         document.querySelector("#dataTable tbody").innerHTML = tableBody;
 
         summaryBox.innerHTML = `
-            <strong>Outcomes:</strong> Typical: $${Math.round(p50[years]).toLocaleString()} | Downside: $${Math.round(p10[years]).toLocaleString()}
+            <strong>Outcomes (Inflation Adj):</strong> Typical: $${Math.round(p50[years]).toLocaleString()} | Downside: $${Math.round(p10[years]).toLocaleString()}
             <p style="margin: 10px 0;">Overall, your plan is ${assessment}</p>
             ${rec}
         `;
@@ -258,9 +257,8 @@ function runSimulation() {
                 { label: 'Aggressive', data: p90, borderColor: '#001935', backgroundColor: 'rgba(0, 25, 53, 0.1)', fill: 2, pointRadius: 0 },
                 { label: 'Conservative', data: p10, borderColor: 'rgba(0, 25, 53, 0.2)', borderDash: [5, 5], pointRadius: 0 }
             ]},
-            options: { 
-                responsive: true, 
-                maintainAspectRatio: false,
+            options: {
+                responsive: true, maintainAspectRatio: false,
                 interaction: { mode: 'index', intersect: false },
                 plugins: {
                     tooltip: { callbacks: { label: (ctx) => `${ctx.dataset.label}: $${Math.round(ctx.parsed.y).toLocaleString()}` } }
@@ -304,21 +302,36 @@ function runSimulation() {
 
 async function downloadPDF() {
     const btn = document.getElementById('downloadBtn');
+    const controls = document.getElementById('inputControls');
+    const bottomNav = document.getElementById('bottomNav');
+    const jsPDF = window.jspdf ? window.jspdf.jsPDF : window.jsPDF;
+    
     btn.innerText = "Generating PDF...";
     btn.disabled = true;
+
+    // Temporarily hide UI elements for the PDF
+    controls.style.display = 'none';
+    bottomNav.style.display = 'none';
+
     try {
-        const canvas = await html2canvas(document.getElementById('reportContent'), { scale: 2 });
+        const report = document.getElementById('reportContent');
+        const canvas = await html2canvas(report, { scale: 2 });
         const imgData = canvas.toDataURL('image/png');
         const doc = new jsPDF('p', 'mm', 'a4');
         const imgWidth = 190;
         const imgHeight = (canvas.height * imgWidth) / canvas.width;
+        
         doc.addImage(imgData, 'PNG', 10, 10, imgWidth, imgHeight);
-        doc.save("Growth-Report.pdf");
-    } catch (e) { alert("PDF Error: " + e.message); }
-    btn.innerText = "Download PDF";
-    btn.disabled = false;
+        doc.save("Camac-Growth-Report.pdf");
+    } catch (e) {
+        alert("PDF Error: " + e.message); 
+    } finally {
+        controls.style.display = 'grid';
+        bottomNav.style.display = 'block';
+        btn.innerText = "Download PDF";
+        btn.disabled = false;
+    }
 }
 </script>
 </body>
 </html>
-
