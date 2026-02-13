@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Advanced Monte Carlo Simulator | Camac Consulting</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    
     <style>
         body { font-family: -apple-system, sans-serif; background: #ffffff; padding: 10px; color: #333; margin: 0; }
         .container { max-width: 800px; margin: auto; padding-bottom: 120px; } 
@@ -12,10 +15,11 @@
         label { display: block; font-weight: bold; font-size: 11px; color: #001935; text-transform: uppercase; }
         input { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; margin-top: 4px; font-size: 14px; }
         
-        .btn-group { grid-column: span 3; display: grid; grid-template-columns: 2fr 1fr; gap: 10px; margin-top: 5px; }
+        .btn-group { grid-column: span 3; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-top: 5px; }
         button { padding: 12px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 14px; }
         #runBtn { background: #001935; color: white; }
         #resetBtn { background: #ddd; color: #333; }
+        #downloadBtn { background: #41797e; color: white; display: none; }
         button:disabled { background: #666 !important; cursor: not-allowed; }
         
         .stats-bar { display: grid; grid-template-columns: 1fr; gap: 10px; margin-bottom: 15px; }
@@ -24,7 +28,7 @@
         .stat-card p { margin: 0; font-size: 12px; text-transform: uppercase; opacity: 0.9; }
 
         #resultSummary { background: #fdfdfd; padding: 15px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; line-height: 1.5; color: #444; display: none; margin-top: 5px; }
-        .recommendation-tag { display: inline-block; background: #e8f4f1; color: #2d5a5e; padding: 2px 8px; border-radius: 4px; font-weight: bold; margin-top: 5px; }
+        .recommendation-tag { display: inline-block; background: #e8f4f1; color: #2d5a5e; padding: 2px 8px; border-radius: 4px; font-weight: bold; margin-top: 8px; border: 1px solid #cde3de; }
  
         .chart-container { height: 350px; margin-bottom: 20px; position: relative; background: #fff; border: 1px solid #eee; }
         #loader { display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 10; }
@@ -35,22 +39,19 @@
         .helper-text { grid-column: span 2; font-size: 10px; color: #666; font-style: italic; margin-bottom: 5px; }
         .cap-disclaimer { font-size: 9px; color: #666; font-style: italic; margin-top: 4px; line-height: 1.2; }
         
-        table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 20px; position: relative; }
-        th { background: #001935; color: white; padding: 8px; position: relative; z-index: 2; }
-        td { border: 1px solid #eee; padding: 8px; text-align: center; position: relative; z-index: 2; }
+        table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 20px; }
+        th { background: #001935; color: white; padding: 8px; }
+        td { border: 1px solid #eee; padding: 8px; text-align: center; }
         
-        #dataTable tbody {
-            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="200" height="100"><text x="50%" y="50%" font-family="sans-serif" font-size="14" fill="rgba(65, 121, 126, 0.15)" text-anchor="middle" font-weight="bold">CAMAC CONSULTING</text></svg>');
-            background-repeat: no-repeat; background-position: center;
-        }
- 
+        .pdf-disclaimer { font-size: 10px; color: #888; margin-top: 20px; line-height: 1.4; border-top: 1px solid #eee; padding-top: 10px; }
+
         .footer-nav { position: fixed; bottom: 0; left: 0; width: 100%; background: #fff; padding: 15px 0; border-top: 1px solid #ddd; text-align: center; z-index: 1000; }
-        .footer-nav a { color: #ffffff; background-color: #41797e; font-weight: bold; text-decoration: none; font-size: 14px; display: inline-block; padding: 10px 25px; border-radius: 4px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+        .footer-nav a { color: #ffffff; background-color: #41797e; font-weight: bold; text-decoration: none; font-size: 14px; display: inline-block; padding: 10px 25px; border-radius: 4px; }
     </style>
 </head>
 <body>
  
-<div class="container">
+<div class="container" id="reportContent">
     <div class="stats-bar">
         <div class="stat-card">
             <p>Probability of Hitting Goal</p>
@@ -63,64 +64,37 @@
         <div>
             <label>Principal ($)</label>
             <input type="number" id="p" placeholder="0">
-            <div class="cap-disclaimer">Initial investment amount.</div>
+            <div class="cap-disclaimer">Initial investment.</div>
         </div>
         <div>
             <label>Annual Contrib ($)</label>
             <input type="number" id="c" placeholder="0">
-            <div class="cap-disclaimer">Amount added each year.</div>
+            <div class="cap-disclaimer">Annual addition.</div>
         </div>
         <div>
             <label>Savings Goal ($)</label>
             <input type="number" id="goal" placeholder="0">
-            <div class="cap-disclaimer">Target amount to reach.</div>
+            <div class="cap-disclaimer">Target amount.</div>
         </div>
         
-        <div>
-            <label>Return (%)</label>
-            <input type="number" id="r" placeholder="0">
-            <div class="cap-disclaimer">Expected annual average return.</div>
-        </div>
-        <div>
-            <label>Volatility (%)</label>
-            <input type="number" id="sd" placeholder="0">
-            <div class="cap-disclaimer">Annual market fluctuation (Std Dev).</div>
-        </div>
-        <div>
-            <label>Inflation (%)</label>
-            <input type="number" id="infl" placeholder="0">
-            <div class="cap-disclaimer">Adjusts results for purchasing power.</div>
-        </div>
+        <div><label>Return (%)</label><input type="number" id="r" placeholder="0"></div>
+        <div><label>Volatility (%)</label><input type="number" id="sd" placeholder="0"></div>
+        <div><label>Inflation (%)</label><input type="number" id="infl" placeholder="0"></div>
         
-        <div>
-            <label>Years</label>
-            <input type="number" id="y" placeholder="0">
-            <div class="cap-disclaimer">Length of the investment period.</div>
-        </div>
-        <div>
-            <label>Scenarios</label>
-            <input type="number" id="s" value="50000" max="100000">
-            <div class="cap-disclaimer">Maximum allowed: 100,000 for stability.</div>
-        </div>
+        <div><label>Years</label><input type="number" id="y" placeholder="0"></div>
+        <div><label>Scenarios</label><input type="number" id="s" value="50000"></div>
         <div></div>
         
         <div class="crash-section">
-            <div class="helper-text">Separate multiple years/amounts with commas.</div>
-            <div>
-                <label>Crash Years</label>
-                <input type="text" id="crashYears" placeholder="e.g. 1, 5">
-                <div class="cap-disclaimer">Specific years markets drop.</div>
-            </div>
-            <div>
-                <label>Crash Amounts (%)</label>
-                <input type="text" id="crashPcts" placeholder="e.g. 20, 30">
-                <div class="cap-disclaimer">Percentage loss for crash years.</div>
-            </div>
+            <div class="helper-text">Simulate market drops (comma separated).</div>
+            <div><label>Crash Years</label><input type="text" id="crashYears" placeholder="e.g. 1, 5"></div>
+            <div><label>Crash Amounts (%)</label><input type="text" id="crashPcts" placeholder="e.g. 20, 30"></div>
         </div>
         
         <div class="btn-group">
-            <button id="runBtn" onclick="handleButtonClick()">Update Simulation</button>
+            <button id="runBtn" onclick="handleButtonClick()">Update</button>
             <button id="resetBtn" onclick="resetFields()">Reset</button>
+            <button id="downloadBtn" onclick="downloadPDF()">PDF Report</button>
         </div>
     </div>
  
@@ -135,6 +109,10 @@
         </thead>
         <tbody></tbody>
     </table>
+
+    <div class="pdf-disclaimer">
+        <strong>Disclaimer:</strong> This simulation is for educational purposes only and does not constitute financial advice. Projections are based on historical volatility and Monte Carlo statistical modeling. Future market performance is unpredictable, and actual results may vary significantly.
+    </div>
 </div>
  
 <div class="footer-nav">
@@ -143,62 +121,51 @@
  
 <script>
 let myChart;
- 
+const { jsPDF } = window.jspdf;
+
 function rnorm(m, s) { 
     let u=0, v=0;
     while(u===0) u=Math.random(); while(v===0) v=Math.random();
     return m + s * Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
 }
 
-// Function to find the contribution needed for 80% success
-function findNeededContrib(P, Goal, R, SD, INFL, years, crashMap, targetSuccess = 0.8) {
-    let low = 0, high = Goal / Math.max(years, 1);
+function findNeededContrib(P, Goal, R, SD, INFL, years, crashMap) {
+    let low = 0, high = Goal / Math.max(years, 1) * 2;
     let bestC = high;
-    // Simple binary search over 15 iterations for efficiency
     for(let i=0; i<15; i++) {
         let mid = (low + high) / 2;
         let successes = 0;
-        const testScenarios = 2000; // Lower sample for speed during solving
-        for(let s=0; s<testScenarios; s++) {
+        for(let s=0; s<1500; s++) {
             let bal = P;
             for(let t=1; t<=years; t++) {
-                let currentReturn = (crashMap[t] !== undefined) ? -crashMap[t] : rnorm(R, SD);
-                bal = (bal * (1 + currentReturn)) + mid;
+                let currRet = (crashMap[t] !== undefined) ? -crashMap[t] : rnorm(R, SD);
+                bal = (bal * (1 + currRet)) + mid;
             }
             if((bal / Math.pow(1 + INFL, years)) >= Goal) successes++;
         }
-        if(successes / testScenarios >= targetSuccess) {
-            bestC = mid;
-            high = mid;
-        } else {
-            low = mid;
-        }
+        if(successes / 1500 >= 0.8) { bestC = mid; high = mid; } else { low = mid; }
     }
     return bestC;
 }
- 
+
 function resetFields() {
-    const ids = ['p', 'c', 'goal', 'r', 'sd', 'infl', 'y', 'crashYears', 'crashPcts'];
-    ids.forEach(id => document.getElementById(id).value = '');
+    ['p', 'c', 'goal', 'r', 'sd', 'infl', 'y', 'crashYears', 'crashPcts'].forEach(id => document.getElementById(id).value = '');
     document.getElementById('s').value = '50000';
     document.getElementById('successRate').innerText = '--%';
     document.getElementById('resultSummary').style.display = 'none';
+    document.getElementById('downloadBtn').style.display = 'none';
     if(myChart) myChart.destroy();
     document.querySelector("#dataTable tbody").innerHTML = "";
 }
- 
+
 function handleButtonClick() {
-    if(!document.getElementById('y').value || !document.getElementById('s').value) {
-        alert("Please enter Years and Scenarios.");
-        return;
-    }
+    if(!document.getElementById('y').value) return alert("Please enter Years.");
     document.getElementById('loader').style.display = 'block';
     const btn = document.getElementById('runBtn');
-    btn.disabled = true;
-    btn.innerText = "Simulating...";
+    btn.disabled = true; btn.innerText = "Simulating...";
     setTimeout(runSimulation, 50);
 }
- 
+
 function runSimulation() {
     try {
         const P = parseFloat(document.getElementById('p').value) || 0;
@@ -210,32 +177,29 @@ function runSimulation() {
         const years = parseInt(document.getElementById('y').value) || 0;
         const numScenarios = Math.min(parseInt(document.getElementById('s').value) || 100, 100000);
         
-        const crashInputStr = document.getElementById('crashYears').value.trim();
-        const crashYearsArray = crashInputStr.split(',').map(x => parseInt(x.trim()));
+        const crashIn = document.getElementById('crashYears').value.trim();
         const crashPctsArray = document.getElementById('crashPcts').value.split(',').map(x => (parseFloat(x.trim()) || 0) / 100);
-        
         let crashMap = {};
-        crashYearsArray.forEach((yr, index) => { if(!isNaN(yr)) crashMap[yr] = crashPctsArray[index] || 0; });
+        crashIn.split(',').forEach((yr, i) => { if(!isNaN(parseInt(yr))) crashMap[parseInt(yr)] = crashPctsArray[i] || 0; });
         
         let results = Array.from({length: years + 1}, () => []);
         let successes = 0;
- 
         for(let s=0; s<numScenarios; s++) {
             let bal = P; results[0].push(bal);
             for(let t=1; t<=years; t++) {
-                let currRet = (crashMap[t] !== undefined && crashMap[t] !== 0) ? -crashMap[t] : rnorm(R, SD);
+                let currRet = (crashMap[t] !== undefined) ? -crashMap[t] : rnorm(R, SD);
                 bal = (bal * (1 + currRet)) + C;
                 results[t].push(bal / Math.pow(1 + INFL, t));
             }
             if(results[years][s] >= Goal) successes++;
         }
- 
+
         const successPct = (successes / numScenarios) * 100;
         document.getElementById('successRate').innerText = successPct.toFixed(1) + "%";
- 
+
         let labels = [], p10 = [], p50 = [], p90 = [], tableBody = "";
         const idx10 = Math.floor(numScenarios * 0.1), idx50 = Math.floor(numScenarios * 0.5), idx90 = Math.floor(numScenarios * 0.9);
- 
+
         for(let t=0; t<=years; t++) {
             results[t].sort((a,b) => a-b);
             labels.push("Year " + t);
@@ -246,67 +210,55 @@ function runSimulation() {
         }
         document.querySelector("#dataTable tbody").innerHTML = tableBody;
 
-        // --- Result Summary & Recommendation Logic ---
         const summaryBox = document.getElementById('resultSummary');
-        let assessment = successPct >= 80 ? "excellent shape." : (successPct >= 50 ? "fair shape, but sensitive to market timing." : "at high risk.");
-        
-        let recommendation = "";
-        if(successPct < 80) {
-            const neededC = findNeededContrib(P, Goal, R, SD, INFL, years, crashMap, 0.8);
-            const diff = Math.max(0, neededC - C);
-            recommendation = `<div class="recommendation-tag">Recommendation: Increase annual savings by $${Math.round(diff).toLocaleString()} to reach an 80% success rate.</div>`;
+        let rec = "";
+        if(successPct < 80 && Goal > 0) {
+            const neededC = findNeededContrib(P, Goal, R, SD, INFL, years, crashMap);
+            rec = `<div class="recommendation-tag">Action: Increase annual savings by $${Math.round(neededC - C).toLocaleString()} to reach 80% probability.</div>`;
         }
-
-        let crashAdvice = crashInputStr !== "" ? `
-            <div style="margin-top:10px; padding-top:10px; border-top: 1px dashed #ccc; font-size: 13px;">
-                <strong>⚠️ Crash Analysis:</strong> With drops in year(s) <em>${crashInputStr}</em>, 
-                ${successPct < 60 ? "early losses are creating significant drag. You need a larger buffer to survive these downturns." : "your plan shows strong recovery potential despite these hits."}
-            </div>` : "";
 
         summaryBox.style.display = "block";
         summaryBox.innerHTML = `
-            <div style="margin-bottom: 8px;">Based on <strong>${numScenarios.toLocaleString()}</strong> market paths:</div>
-            <ul style="margin: 0; padding-left: 20px;">
-                <li><strong>Typical Outcome:</strong> $${Math.round(p50[years]).toLocaleString()}</li>
-                <li><strong>Worst 10% Outcome:</strong> $${Math.round(p10[years]).toLocaleString()}</li>
-            </ul>
-            <p style="margin-top: 8px; margin-bottom: 5px;">Overall, your plan is ${assessment}</p>
-            ${recommendation}
-            ${crashAdvice}
+            <strong>Outcomes:</strong> Median: $${Math.round(p50[years]).toLocaleString()} | Downside: $${Math.round(p10[years]).toLocaleString()}
+            <br>Overall, your plan is ${successPct >= 80 ? "excellent." : (successPct >= 50 ? "on the right track but needs buffering." : "at risk.")}
+            ${rec}
+            ${crashIn ? `<div style="font-size:12px; margin-top:5px; color:#888;">⚠️ Includes market drops in year(s) ${crashIn}.</div>` : ""}
         `;
         
+        document.getElementById('downloadBtn').style.display = 'block';
+
         if(myChart) myChart.destroy();
         myChart = new Chart(document.getElementById('growthChart'), {
-            type: 'line',
-            data: {
-                labels: labels,
-                datasets: [
-                    { label: 'Median', data: p50, borderColor: '#41797e', borderWidth: 3, fill: false },
-                    { label: 'Aggressive', data: p90, borderColor: '#001935', backgroundColor: 'rgba(0, 25, 53, 0.1)', fill: 2, pointRadius: 0 },
-                    { label: 'Conservative', data: p10, pointRadius: 0, fill: false, borderColor: 'rgba(0, 25, 53, 0.2)', borderDash: [5, 5] }
-                ]
-            },
-            options: {
-                responsive: true, maintainAspectRatio: false,
-                interaction: { mode: 'index', intersect: false },
-                plugins: { tooltip: { callbacks: { label: (ctx) => `${ctx.dataset.label}: $${Math.round(ctx.parsed.y).toLocaleString()}` } } },
-                scales: { y: { ticks: { callback: v => '$' + v.toLocaleString() } } }
-            },
-            plugins: [{
-                id: 'watermark',
-                beforeDraw: (chart) => {
-                    const ctx = chart.ctx;
-                    ctx.save(); ctx.font = 'bold 12px sans-serif'; ctx.fillStyle = 'rgba(65, 121, 126, 0.5)'; 
-                    ctx.textAlign = 'right'; ctx.fillText('CAMAC CONSULTING', chart.width - 15, 25); ctx.restore();
-                }
-            }]
+            type: 'line', data: { labels: labels, datasets: [
+                { label: 'Median', data: p50, borderColor: '#41797e', borderWidth: 3, fill: false },
+                { label: 'Aggressive', data: p90, borderColor: '#001935', backgroundColor: 'rgba(0, 25, 53, 0.1)', fill: 2, pointRadius: 0 },
+                { label: 'Conservative', data: p10, borderColor: 'rgba(0, 25, 53, 0.2)', borderDash: [5, 5], pointRadius: 0 }
+            ]},
+            options: { responsive: true, maintainAspectRatio: false, plugins: { tooltip: { callbacks: { label: (ctx) => `${ctx.dataset.label}: $${Math.round(ctx.parsed.y).toLocaleString()}` } } } }
         });
     } catch(err) { console.error(err); }
     finally {
         document.getElementById('loader').style.display = 'none';
         const btn = document.getElementById('runBtn');
-        btn.disabled = false; btn.innerText = "Update Simulation";
+        btn.disabled = false; btn.innerText = "Update";
     }
+}
+
+async function downloadPDF() {
+    const btn = document.getElementById('downloadBtn');
+    btn.innerText = "Generating...";
+    const doc = new jsPDF('p', 'mm', 'a4');
+    
+    doc.setFont("helvetica", "bold"); doc.setFontSize(18); doc.text("Investment Growth Report", 15, 20);
+    doc.setFontSize(10); doc.setFont("helvetica", "normal"); doc.text(`Camac Consulting - ${new Date().toLocaleDateString()}`, 15, 26);
+
+    const canvas = await html2canvas(document.getElementById('reportContent'));
+    const imgData = canvas.toDataURL('image/png');
+    const imgWidth = 180; const imgHeight = (canvas.height * imgWidth) / canvas.width;
+    
+    doc.addImage(imgData, 'PNG', 15, 35, imgWidth, imgHeight);
+    doc.save("Investment-Growth-Report.pdf");
+    btn.innerText = "PDF Report";
 }
 </script>
 </body>
