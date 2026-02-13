@@ -51,11 +51,6 @@
 <body>
  
 <div class="container" id="reportContent">
-    <div id="pdfHeader" style="display:none; margin-bottom: 20px;">
-        <h1 style="color:#001935; margin:0;">Investment Growth Report</h1>
-        <p style="color:#666; font-size:12px;">Provided by Camac Consulting</p>
-    </div>
-
     <div class="stats-bar">
         <div class="stat-card" id="mainStatCard">
             <p>Probability of Hitting Goal</p>
@@ -168,7 +163,7 @@ function resetFields() {
 function handleButtonClick() {
     if(!document.getElementById('y').value) return alert("Please enter Years.");
     const btn = document.getElementById('runBtn');
-    originalButtonText = btn.innerText; // Store current text
+    originalButtonText = btn.innerText; 
     document.getElementById('loader').style.display = 'block';
     btn.disabled = true; 
     btn.innerText = "Simulating...";
@@ -206,7 +201,6 @@ function runSimulation() {
         const successPct = (successes / numScenarios) * 100;
         document.getElementById('successRate').innerText = successPct.toFixed(1) + "%";
 
-        // Logic for Conditional Colors
         let statusColor, bgColor, borderColor, assessment;
         if (successPct >= 80) {
             statusColor = "#2d5a27"; bgColor = "#e8f4e9"; borderColor = "#c8e6c9"; assessment = "<strong>excellent shape</strong>.";
@@ -255,18 +249,56 @@ function runSimulation() {
         if(myChart) myChart.destroy();
         myChart = new Chart(document.getElementById('growthChart'), {
             type: 'line', data: { labels: labels, datasets: [
-                { label: 'Median', data: p50, borderColor: '#41797e', borderWidth: 3, fill: false },
+                { label: 'Median', data: p50, borderColor: '#41797e', borderWidth: 3, fill: false, pointHoverRadius: 6 },
                 { label: 'Aggressive', data: p90, borderColor: '#001935', backgroundColor: 'rgba(0, 25, 53, 0.1)', fill: 2, pointRadius: 0 },
                 { label: 'Conservative', data: p10, borderColor: 'rgba(0, 25, 53, 0.2)', borderDash: [5, 5], pointRadius: 0 }
             ]},
-            options: { responsive: true, maintainAspectRatio: false }
+            options: { 
+                responsive: true, 
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    tooltip: {
+                        callbacks: { label: (ctx) => `${ctx.dataset.label}: $${Math.round(ctx.parsed.y).toLocaleString()}` }
+                    }
+                },
+                scales: { 
+                    y: { ticks: { callback: v => '$' + v.toLocaleString() } } 
+                }
+            },
+            plugins: [{
+                id: 'crosshair',
+                afterDraw: (chart) => {
+                    if (chart.tooltip?._active?.length) {
+                        const activePoint = chart.tooltip._active[0];
+                        const { ctx } = chart;
+                        const { x, y } = activePoint.element;
+                        const topY = chart.scales.y.top;
+                        const bottomY = chart.scales.y.bottom;
+                        const leftX = chart.scales.x.left;
+                        const rightX = chart.scales.x.right;
+ 
+                        ctx.save();
+                        ctx.beginPath();
+                        ctx.setLineDash([5, 5]);
+                        ctx.moveTo(x, topY);
+                        ctx.lineTo(x, bottomY);
+                        ctx.moveTo(leftX, y);
+                        ctx.lineTo(rightX, y);
+                        ctx.lineWidth = 1;
+                        ctx.strokeStyle = 'rgba(0, 25, 53, 0.4)';
+                        ctx.stroke();
+                        ctx.restore();
+                    }
+                }
+            }]
         });
     } catch(err) { console.error(err); }
     finally {
         document.getElementById('loader').style.display = 'none';
         const btn = document.getElementById('runBtn');
         btn.disabled = false; 
-        btn.innerText = originalButtonText; // Restore original text
+        btn.innerText = originalButtonText;
     }
 }
 
