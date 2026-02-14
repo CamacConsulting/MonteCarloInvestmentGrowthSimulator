@@ -31,15 +31,15 @@
 
         .chart-container { height: 350px; margin-bottom: 20px; position: relative; background: #fff; border: 1px solid #eee; border-radius: 8px; overflow: hidden; }
         
-        /* Watermark Styles */
+        /* Adjusted Watermark Sizes */
         .watermark {
             position: absolute;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%) rotate(-30deg);
-            font-size: 4rem;
-            color: rgba(0, 25, 53, 0.05);
-            font-weight: 900;
+            font-size: 1.5rem; /* Small font size for main container */
+            color: rgba(0, 25, 53, 0.04);
+            font-weight: 700;
             pointer-events: none;
             white-space: nowrap;
             z-index: 1;
@@ -99,7 +99,7 @@
         <div><label>Inflation (%)</label><input type="number" id="infl" placeholder="0"><div class="cap-disclaimer">Purchasing power adj.</div></div>
         
         <div><label>Years</label><input type="number" id="y" placeholder="0"><div class="cap-disclaimer">Investment horizon.</div></div>
-        <div><label>Scenarios</label><input type="text" id="s" value="50,000" oninput="formatInput(this)"><div class="cap-disclaimer">Max: 100,000 paths.</div></div>
+        <div><label>Scenarios</label><input type="text" id="s" value="50,000" oninput="formatInput(this, 100000)"><div class="cap-disclaimer">MAX: 100,000 simulations.</div></div>
         <div></div>
         
         <div class="crash-section">
@@ -116,7 +116,7 @@
     </div>
 
     <div class="chart-container">
-        <div class="watermark" style="font-size: 2rem;">Camac Consulting</div>
+        <div class="watermark" style="font-size: 0.8rem; top: 10%; left: 90%;">Camac Consulting</div>
         <div id="loader"><div class="spinner"></div></div>
         <canvas id="growthChart" style="position: relative; z-index: 2;"></canvas>
     </div>
@@ -141,10 +141,17 @@
 let myChart;
 let originalButtonText = "Update Simulation";
 
-function formatInput(input) {
-    let value = input.value.replace(/,/g, '');
-    if (!isNaN(value) && value !== "") {
-        input.value = Number(value).toLocaleString();
+function formatInput(input, maxVal = null) {
+    let rawValue = input.value.replace(/,/g, '');
+    let numValue = parseFloat(rawValue);
+
+    if (!isNaN(numValue)) {
+        if (maxVal !== null && numValue > maxVal) {
+            numValue = maxVal;
+        }
+        input.value = numValue.toLocaleString();
+    } else {
+        input.value = rawValue.replace(/[^\d.]/g, '');
     }
 }
 
@@ -211,7 +218,10 @@ function runSimulation() {
         const SD = (parseFloat(document.getElementById('sd').value) || 0) / 100;
         const INFL = (parseFloat(document.getElementById('infl').value) || 0) / 100;
         const years = parseInt(document.getElementById('y').value) || 0;
-        const numScenarios = Math.min(parseInt(document.getElementById('s').value.replace(/,/g, '')) || 100, 100000);
+        
+        let numScenarios = parseFormattedFloat('s');
+        if (numScenarios > 100000) numScenarios = 100000;
+        if (numScenarios < 10) numScenarios = 10;
         
         const crashIn = document.getElementById('crashYears').value.trim();
         const crashPctsArray = document.getElementById('crashPcts').value.split(',').map(x => (parseFloat(x.trim()) || 0) / 100);
