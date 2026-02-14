@@ -62,17 +62,17 @@
     <div class="controls" id="inputControls">
         <div>
             <label>Principal ($)</label>
-            <input type="number" id="p" placeholder="0">
+            <input type="text" id="p" placeholder="0" oninput="formatInput(this)">
             <div class="cap-disclaimer">Initial investment amount.</div>
         </div>
         <div>
             <label>Annual Contrib ($)</label>
-            <input type="number" id="c" placeholder="0">
+            <input type="text" id="c" placeholder="0" oninput="formatInput(this)">
             <div class="cap-disclaimer">Amount added each year.</div>
         </div>
         <div>
             <label>Savings Goal ($)</label>
-            <input type="number" id="goal" placeholder="0">
+            <input type="text" id="goal" placeholder="0" oninput="formatInput(this)">
             <div class="cap-disclaimer">Target amount to reach.</div>
         </div>
         
@@ -81,7 +81,7 @@
         <div><label>Inflation (%)</label><input type="number" id="infl" placeholder="0"><div class="cap-disclaimer">Purchasing power adj.</div></div>
         
         <div><label>Years</label><input type="number" id="y" placeholder="0"><div class="cap-disclaimer">Investment horizon.</div></div>
-        <div><label>Scenarios</label><input type="number" id="s" value="50000"><div class="cap-disclaimer">Max: 100,000 paths.</div></div>
+        <div><label>Scenarios</label><input type="text" id="s" value="50,000" oninput="formatInput(this)"><div class="cap-disclaimer">Max: 100,000 paths.</div></div>
         <div></div>
         
         <div class="crash-section">
@@ -122,6 +122,20 @@
 let myChart;
 let originalButtonText = "Update Simulation";
 
+// Format commas in real-time
+function formatInput(input) {
+    let value = input.value.replace(/,/g, '');
+    if (!isNaN(value) && value !== "") {
+        input.value = Number(value).toLocaleString();
+    }
+}
+
+// Strip commas for math
+function parseFormattedFloat(id) {
+    const val = document.getElementById(id).value.replace(/,/g, '');
+    return parseFloat(val) || 0;
+}
+
 // Helper for Normal Distribution
 function rnorm(m, s) { 
     let u=0, v=0;
@@ -153,7 +167,7 @@ function findNeededContrib(P, Goal, R, SD, INFL, years, crashMap) {
 
 function resetFields() {
     ['p', 'c', 'goal', 'r', 'sd', 'infl', 'y', 'crashYears', 'crashPcts'].forEach(id => document.getElementById(id).value = '');
-    document.getElementById('s').value = '50000';
+    document.getElementById('s').value = '50,000';
     document.getElementById('successRate').innerText = '--%';
     document.getElementById('resultSummary').style.display = 'none';
     document.getElementById('downloadBtn').style.display = 'none';
@@ -175,14 +189,14 @@ function handleButtonClick() {
 
 function runSimulation() {
     try {
-        const P = parseFloat(document.getElementById('p').value) || 0;
-        const C = parseFloat(document.getElementById('c').value) || 0;
-        const Goal = parseFloat(document.getElementById('goal').value) || 0;
+        const P = parseFormattedFloat('p');
+        const C = parseFormattedFloat('c');
+        const Goal = parseFormattedFloat('goal');
         const R = (parseFloat(document.getElementById('r').value) || 0) / 100;
         const SD = (parseFloat(document.getElementById('sd').value) || 0) / 100;
         const INFL = (parseFloat(document.getElementById('infl').value) || 0) / 100;
         const years = parseInt(document.getElementById('y').value) || 0;
-        const numScenarios = Math.min(parseInt(document.getElementById('s').value) || 100, 100000);
+        const numScenarios = Math.min(parseInt(document.getElementById('s').value.replace(/,/g, '')) || 100, 100000);
         
         const crashIn = document.getElementById('crashYears').value.trim();
         const crashPctsArray = document.getElementById('crashPcts').value.split(',').map(x => (parseFloat(x.trim()) || 0) / 100);
@@ -309,7 +323,6 @@ async function downloadPDF() {
     btn.innerText = "Generating PDF...";
     btn.disabled = true;
 
-    // Temporarily hide UI elements for the PDF
     controls.style.display = 'none';
     bottomNav.style.display = 'none';
 
@@ -335,4 +348,3 @@ async function downloadPDF() {
 </script>
 </body>
 </html>
-
