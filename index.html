@@ -10,7 +10,7 @@
     
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: #ffffff; padding: 10px; color: #333; margin: 0; }
-        .container { max-width: 800px; margin: auto; padding-bottom: 120px; } 
+        .container { max-width: 800px; margin: auto; padding-bottom: 120px; position: relative; } 
         .controls { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; background: #f4f7f9; padding: 15px; border-radius: 8px; margin-bottom: 15px; }
         label { display: block; font-weight: bold; font-size: 11px; color: #001935; text-transform: uppercase; }
         input { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; margin-top: 4px; font-size: 14px; }
@@ -29,7 +29,23 @@
 
         #resultSummary { background: #fdfdfd; padding: 15px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; line-height: 1.6; color: #444; display: none; margin-top: 5px; }
 
-        .chart-container { height: 350px; margin-bottom: 20px; position: relative; background: #fff; border: 1px solid #eee; border-radius: 8px; }
+        .chart-container { height: 350px; margin-bottom: 20px; position: relative; background: #fff; border: 1px solid #eee; border-radius: 8px; overflow: hidden; }
+        
+        /* Watermark Styles */
+        .watermark {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(-30deg);
+            font-size: 4rem;
+            color: rgba(0, 25, 53, 0.05);
+            font-weight: 900;
+            pointer-events: none;
+            white-space: nowrap;
+            z-index: 1;
+            text-transform: uppercase;
+        }
+
         #loader { display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 10; }
         .spinner { width: 40px; height: 40px; border: 4px solid #f3f3f3; border-top: 4px solid #41797e; border-radius: 50%; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
@@ -38,9 +54,9 @@
         .helper-text { grid-column: span 2; font-size: 10px; color: #666; font-style: italic; margin-bottom: 5px; }
         .cap-disclaimer { font-size: 9px; color: #666; font-style: italic; margin-top: 4px; line-height: 1.2; }
         
-        table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 20px; }
+        table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 20px; position: relative; z-index: 2; }
         th { background: #001935; color: white; padding: 10px; text-align: center; }
-        td { border: 1px solid #eee; padding: 10px; text-align: center; }
+        td { border: 1px solid #eee; padding: 10px; text-align: center; background: white; }
         
         .pdf-disclaimer { font-size: 10px; color: #888; margin-top: 25px; line-height: 1.5; border-top: 1px solid #eee; padding-top: 15px; }
 
@@ -51,6 +67,8 @@
 <body>
 
 <div class="container" id="reportContent">
+    <div class="watermark">Camac Consulting</div>
+
     <div class="stats-bar">
         <div class="stat-card" id="mainStatCard">
             <p>Probability of Hitting Goal</p>
@@ -98,8 +116,9 @@
     </div>
 
     <div class="chart-container">
+        <div class="watermark" style="font-size: 2rem;">Camac Consulting</div>
         <div id="loader"><div class="spinner"></div></div>
-        <canvas id="growthChart"></canvas>
+        <canvas id="growthChart" style="position: relative; z-index: 2;"></canvas>
     </div>
 
     <table id="dataTable">
@@ -122,7 +141,6 @@
 let myChart;
 let originalButtonText = "Update Simulation";
 
-// Format commas in real-time
 function formatInput(input) {
     let value = input.value.replace(/,/g, '');
     if (!isNaN(value) && value !== "") {
@@ -130,13 +148,11 @@ function formatInput(input) {
     }
 }
 
-// Strip commas for math
 function parseFormattedFloat(id) {
     const val = document.getElementById(id).value.replace(/,/g, '');
     return parseFloat(val) || 0;
 }
 
-// Helper for Normal Distribution
 function rnorm(m, s) { 
     let u=0, v=0;
     while(u===0) u=Math.random(); 
@@ -144,7 +160,6 @@ function rnorm(m, s) {
     return m + s * Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
 }
 
-// Binary search to find contribution needed for 80% success
 function findNeededContrib(P, Goal, R, SD, INFL, years, crashMap) {
     let low = 0, high = (Goal / Math.max(years, 1)) * 5;
     let bestC = high;
@@ -280,30 +295,7 @@ function runSimulation() {
                 scales: { 
                     y: { ticks: { callback: v => '$' + v.toLocaleString() } } 
                 }
-            },
-            plugins: [{
-                id: 'crosshair',
-                afterDraw: (chart) => {
-                    if (chart.tooltip?._active?.length) {
-                        const activePoint = chart.tooltip._active[0];
-                        const { ctx } = chart;
-                        const { x, y } = activePoint.element;
-                        const topY = chart.scales.y.top;
-                        const bottomY = chart.scales.y.bottom;
-                        const leftX = chart.scales.x.left;
-                        const rightX = chart.scales.x.right;
-                        ctx.save();
-                        ctx.beginPath();
-                        ctx.setLineDash([5, 5]);
-                        ctx.moveTo(x, topY); ctx.lineTo(x, bottomY);
-                        ctx.moveTo(leftX, y); ctx.lineTo(rightX, y);
-                        ctx.lineWidth = 1;
-                        ctx.strokeStyle = 'rgba(0, 25, 53, 0.4)';
-                        ctx.stroke();
-                        ctx.restore();
-                    }
-                }
-            }]
+            }
         });
     } catch(err) { console.error(err); }
     finally {
@@ -328,7 +320,7 @@ async function downloadPDF() {
 
     try {
         const report = document.getElementById('reportContent');
-        const canvas = await html2canvas(report, { scale: 2 });
+        const canvas = await html2canvas(report, { scale: 2, useCORS: true });
         const imgData = canvas.toDataURL('image/png');
         const doc = new jsPDF('p', 'mm', 'a4');
         const imgWidth = 190;
